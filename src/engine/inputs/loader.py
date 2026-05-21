@@ -287,8 +287,7 @@ def load(cenario: str = "Base"):
             VENDAS_2026_2029_FILE,            # Pressupostos vendas 2026-2029
             CUSTOS_2025_FILE,                 # Pressupostos custos 2025
             CUSTOS_2026_2029_FILE,            # Pressupostos custos 2026-2029
-            MIX_2024_FILE,                    # Mix real 2024 (base histórica)
-            MIX_2025_FILE,                    # Mix planeamento 2025
+            MIX_2024_FILE,                    # Mix real 2024 (base histórica — única fonte de mix)
             ASSUMPTIONS_FILE,                 # Globais — fiscal, prazos, pessoal, ESG
         ])
     )

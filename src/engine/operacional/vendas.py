@@ -454,6 +454,99 @@ def _market_uplift(a: Assumptions, mercado: str, produto: str) -> float:
     return _single(mercado)
 
 
+def _vol_factor_mercado_canal(a: Assumptions, produto: str, mercado: str) -> float:
+    """Factor multiplicativo adicional de volume por mercado e canal (lógica cumulativa).
+
+    Compõe o crescimento diferenciado por mercado geográfico com o crescimento
+    diferenciado por canal de distribuição (ponderado pelo mix de canais do mercado).
+    Retorna 1.0 se nenhum dos dois estiver configurado (comportamento neutro).
+    """
+    g_mkt = a.cresc_vol_por_mercado
+    g_canal = a.cresc_vol_por_canal
+
+    if not g_mkt and not g_canal:
+        return 1.0
+
+    # Factor de mercado
+    if mercado in ("EXT", "EXTERNO"):
+        usa_w, row_w = _market_weights_for_ext(a, produto)
+        total = usa_w + row_w
+        if total > 0:
+            mkt_rate = (usa_w * g_mkt.get("USA", 0.0) + row_w * g_mkt.get("ROW", 0.0)) / total
+        else:
+            mkt_rate = g_mkt.get("EXT", 0.0)
+    else:
+        mkt_rate = g_mkt.get(mercado, 0.0)
+
+    # Factor de canal — ponderado pelo mix de canais deste produto/mercado
+    canal_rate = 0.0
+    if g_canal:
+        mix_cp = a.mix_canal_produto
+        canal_mix = (mix_cp.get(produto) or mix_cp.get("_default") or {}).get(mercado, {})
+
+        if not canal_mix and mercado in ("EXT", "EXTERNO"):
+            usa_w, row_w = _market_weights_for_ext(a, produto)
+            total = usa_w + row_w
+            if total > 0:
+                default = mix_cp.get("_default") or {}
+                usa_m = (mix_cp.get(produto) or default).get("USA", {})
+                row_m = (mix_cp.get(produto) or default).get("ROW", {})
+                canal_mix = {
+                    c: (usa_w * usa_m.get(c, 0.0) + row_w * row_m.get(c, 0.0)) / total
+                    for c in set(list(usa_m) + list(row_m))
+                }
+
+        canal_rate = sum(float(canal_mix.get(c, 0.0)) * float(r) for c, r in g_canal.items())
+
+    return (1.0 + mkt_rate) * (1.0 + canal_rate)
+
+
+def _pvu_factor_mercado_canal(a: Assumptions, produto: str, mercado: str) -> float:
+    """Factor multiplicativo adicional de PVU por mercado e canal (lógica cumulativa).
+
+    Idêntico em estrutura a _vol_factor_mercado_canal mas aplicado ao preço unitário.
+    Retorna 1.0 se nenhum dos dois estiver configurado (comportamento neutro).
+    """
+    g_mkt = a.cresc_pvu_por_mercado
+    g_canal = a.cresc_pvu_por_canal
+
+    if not g_mkt and not g_canal:
+        return 1.0
+
+    # Factor de mercado
+    if mercado in ("EXT", "EXTERNO"):
+        usa_w, row_w = _market_weights_for_ext(a, produto)
+        total = usa_w + row_w
+        if total > 0:
+            mkt_rate = (usa_w * g_mkt.get("USA", 0.0) + row_w * g_mkt.get("ROW", 0.0)) / total
+        else:
+            mkt_rate = g_mkt.get("EXT", 0.0)
+    else:
+        mkt_rate = g_mkt.get(mercado, 0.0)
+
+    # Factor de canal — ponderado pelo mix de canais deste produto/mercado
+    canal_rate = 0.0
+    if g_canal:
+        mix_cp = a.mix_canal_produto
+        canal_mix = (mix_cp.get(produto) or mix_cp.get("_default") or {}).get(mercado, {})
+
+        if not canal_mix and mercado in ("EXT", "EXTERNO"):
+            usa_w, row_w = _market_weights_for_ext(a, produto)
+            total = usa_w + row_w
+            if total > 0:
+                default = mix_cp.get("_default") or {}
+                usa_m = (mix_cp.get(produto) or default).get("USA", {})
+                row_m = (mix_cp.get(produto) or default).get("ROW", {})
+                canal_mix = {
+                    c: (usa_w * usa_m.get(c, 0.0) + row_w * row_m.get(c, 0.0)) / total
+                    for c in set(list(usa_m) + list(row_m))
+                }
+
+        canal_rate = sum(float(canal_mix.get(c, 0.0)) * float(r) for c, r in g_canal.items())
+
+    return (1.0 + mkt_rate) * (1.0 + canal_rate)
+
+
 def vendas_anuais(
     a: Assumptions,
     base: Base2024,
@@ -499,8 +592,10 @@ def vendas_anuais(
             }
         )
 
-        vf = factors_2025_vol[(prod, merc)] * (1 + _market_uplift(a, merc, prod))
-        pf = factors_2025_price[(prod, merc)]
+        vf = (factors_2025_vol[(prod, merc)]
+              * (1 + _market_uplift(a, merc, prod))
+              * _vol_factor_mercado_canal(a, prod, merc))
+        pf = factors_2025_price[(prod, merc)] * _pvu_factor_mercado_canal(a, prod, merc)
 
         qty_2025 = qty24 * vf
         pvu_2025 = pvu24 * pf
@@ -597,7 +692,15 @@ def vendas_mercadorias_anuais(
             }
         )
 
-        qty_2025 = qty_2024 * vol_f_2025
+        # Override por mercadoria se definido em qtd_mercadorias_crescimento
+        vol_block_merc = (block.get("volume_mercadoria_crescimento", {}) or {}).get(nome)
+        if vol_block_merc is not None:
+            cum_vol_merc = _monthly_cum_index(_monthly_rates(vol_block_merc))
+            vol_f_merc = sum(saz[m] * cum_vol_merc[m] for m in MESES)
+        else:
+            vol_f_merc = vol_f_2025
+
+        qty_2025 = qty_2024 * vol_f_merc
 
         rate_2025 = (
             a.cresc_2025_pvu_mercadoria(nome)

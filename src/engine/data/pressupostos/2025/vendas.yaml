@@ -78,3 +78,41 @@ pvu_mercadorias_crescimento:
     base_2025: 0.01
   Texteis_Acessorios:
     base_2025: 0.01
+
+# Crescimento diferenciado por mercado geográfico (grandeza física, valor directo)
+# Acumulado multiplicativamente sobre crescimento_volume_vendas (global)
+# e qtd_produto_crescimento (por produto).
+# Exemplo: UE: 0.05 → mercado UE cresce +5% adicional ao global
+crescimento_volume_por_mercado:
+  PT:  0.00
+  UE:  0.00
+  USA: 0.00
+  ROW: 0.00
+
+# Crescimento diferenciado por canal de distribuição (grandeza física, valor directo)
+# Acumulado multiplicativamente sobre crescimento_volume_vendas (global).
+# O efeito por mercado emerge automaticamente: mercados com maior peso de
+# E_Commerce beneficiam mais se E_Commerce crescer.
+crescimento_volume_por_canal:
+  Private_Label: 0.00
+  Hotelaria:     0.00
+  Retalho:       0.00
+  E_Commerce:    0.00
+
+# Ajuste diferenciado de PVU por mercado geográfico (valor directo, taxa real)
+# Acumulado multiplicativamente sobre pvu_produto_crescimento (por produto).
+# Exemplo: USA: 0.03 → pricing power adicional de 3% no mercado USA
+crescimento_pvu_por_mercado:
+  PT:  0.00
+  UE:  0.00
+  USA: 0.00
+  ROW: 0.00
+
+# Ajuste diferenciado de PVU por canal de distribuição (valor directo, taxa real)
+# Acumulado multiplicativamente. Mercados com maior peso de E_Commerce beneficiam
+# mais se E_Commerce tiver pricing power superior.
+crescimento_pvu_por_canal:
+  Private_Label: 0.00
+  Hotelaria:     0.00
+  Retalho:       0.00
+  E_Commerce:    0.00

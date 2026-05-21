@@ -210,6 +210,26 @@ class Assumptions:
         }
 
     @property
+    def cresc_vol_por_mercado(self) -> dict[str, float]:
+        """Taxa de crescimento de volume adicional por mercado geográfico."""
+        return {k: float(v) for k, v in (self.raw.get("crescimento_volume_por_mercado") or {}).items()}
+
+    @property
+    def cresc_vol_por_canal(self) -> dict[str, float]:
+        """Taxa de crescimento de volume adicional por canal de distribuição."""
+        return {k: float(v) for k, v in (self.raw.get("crescimento_volume_por_canal") or {}).items()}
+
+    @property
+    def cresc_pvu_por_mercado(self) -> dict[str, float]:
+        """Ajuste de PVU adicional por mercado geográfico."""
+        return {k: float(v) for k, v in (self.raw.get("crescimento_pvu_por_mercado") or {}).items()}
+
+    @property
+    def cresc_pvu_por_canal(self) -> dict[str, float]:
+        """Ajuste de PVU adicional por canal de distribuição."""
+        return {k: float(v) for k, v in (self.raw.get("crescimento_pvu_por_canal") or {}).items()}
+
+    @property
     def cenarios_mensais(self):
         """Cenários mensais.
 
@@ -226,6 +246,8 @@ class Assumptions:
                     "pvu_mercadorias_crescimento",
                     {},
                 ),
+                "volume_produto_crescimento": self.raw.get("qtd_produto_crescimento", {}),
+                "volume_mercadoria_crescimento": self.raw.get("qtd_mercadorias_crescimento", {}),
                 "fse": self.raw.get("crescimento_fse", {}),
                 "pessoal": self.raw.get("crescimento_pessoal", {}),
                 "custo_mercadorias": self.raw.get("crescimento_custo_mercadorias", {}),
