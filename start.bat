@@ -10,9 +10,6 @@ if not exist "python\python.exe" (
     exit /b 1
 )
 
-:: Open browser automatically after server starts
-start "" cmd /c "timeout /t 3 /nobreak >nul && start http://localhost:8000"
-
 echo Servidor disponivel em: http://localhost:8000
 echo Feche esta janela para parar o servidor.
 echo.

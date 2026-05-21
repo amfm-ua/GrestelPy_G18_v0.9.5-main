@@ -68,5 +68,14 @@ app.mount("/interface", StaticFiles(directory=str(BASE_DIR / "interface"), html=
 
 
 if __name__ == "__main__":
+    import threading
+    import webbrowser
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+
+    def _open_browser():
+        import time
+        time.sleep(2)
+        webbrowser.open("http://localhost:8000")
+
+    threading.Thread(target=_open_browser, daemon=True).start()
+    uvicorn.run(app, host="0.0.0.0", port=8000)
