@@ -97,8 +97,10 @@ pessoal:
   # Seguros_AT:   calculado em runtime como Remuneracoes × sat_pct_remun.
   # Outros_Encargos: residual (participação lucros IAS 19, formação, outros).
   contab:
-    Remuneracoes_2024: 11400000.0   # Nota 28 R&C 2024 (aprox.)
-    sat_pct_remun: 0.0132           # Prémio SAT sobre remunerações (~1.3% — cerâmica)
+    Remuneracoes_2024: 11428817.69  # Nota 28 R&C 2024 auditado (antes: 11400000.0)
+    sat_pct_remun: 0.01182          # Prémio SAT: 135102.98 / 11428817.69 (antes: 0.0132)
+    remun_pct_total: 0.7952         # Remuneracoes / total_pessoal 2024 — usado no EOEP
+    irs_retencao_folha: 0.10        # Taxa simplificada IRS folha (retenção EOEP dezembro)
 
   # ─── Subdivisão Departamental ───────────────────────────────────────────────
   # Pesos estáveis aplicados ao total projetado em cada ano.

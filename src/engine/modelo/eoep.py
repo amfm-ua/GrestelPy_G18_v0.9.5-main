@@ -74,8 +74,9 @@ def eoep_anual(
             eoep_2025_devedor = abs(iva_outstanding)
             iva_credor_2025 = 0.0
 
-        # SS de Dez é pago em Jan 2026 — pendente no balanço
-        ss_outstanding = m_map.get("Dez", {}).get("ss_acumulado_periodo", 0.0)
+        # SS e IRS de Dez são pagos em Jan 2026 — pendentes no balanço
+        ss_outstanding  = m_map.get("Dez", {}).get("ss_acumulado_periodo",  0.0)
+        irs_outstanding = m_map.get("Dez", {}).get("irs_acumulado_periodo", 0.0)
 
         # IRC: total do ano menos pagamentos por conta já efectuados
         irc_ppc_total = sum(
@@ -83,13 +84,18 @@ def eoep_anual(
         )
         irc_saldo = max(0.0, irc_anual.get(2025, 0.0) - irc_ppc_total)
 
-        eoep_2025_credor = iva_credor_2025 + ss_outstanding + irc_saldo
+        eoep_2025_credor = iva_credor_2025 + ss_outstanding + irs_outstanding + irc_saldo
+        pessoal_eoep_2025 = ss_outstanding + irs_outstanding
     else:
         eoep_2025_devedor = abs(float(sched.eoep["IVA_saldo_2024_2025_total"]))
+        ss_2025  = float(sched.eoep["SS_saldo_2025_total"])
+        irs_2025 = float(sched.eoep.get("IRS_saldo_2025_total", 0.0))
         eoep_2025_credor = (
             float(sched.eoep["IRC_saldo_2025_total"])
-            + float(sched.eoep["SS_saldo_2025_total"])
+            + ss_2025
+            + irs_2025
         )
+        pessoal_eoep_2025 = ss_2025 + irs_2025
 
     ab = sched.plurianual_AB
     g_ab73 = ab.get("AB73", 0.025)
@@ -105,20 +111,32 @@ def eoep_anual(
         2025: max(0.0, eoep_2025_credor),
     }
 
+    # Componente pessoal (SS+IRS dezembro) cresce com os gastos de pessoal.
+    # Componente IVA cresce com os fatores plurianuais (AB73/AB74).
+    g_pessoal_yr = a.cresc_2026_2029("pessoal")
+
+    iva_cred_base = max(
+        0.0,
+        eoep_2025_credor
+        - max(0.0, float(sched.eoep.get("IRC_saldo_2025_total", 0.0)))
+        - pessoal_eoep_2025,
+    )
+
+    pessoal_eoep_rolling = pessoal_eoep_2025
+
     for y in YEARS[1:]:
         eoep_dev[y] = eoep_dev[y - 1] * (
             1 + (g_ab73 if y == 2026 else g_ab74)
         )
 
-        iva_part = max(
-            0.0,
-            eoep_2025_credor - max(0.0, float(sched.eoep.get("IRC_saldo_2025_total", 0.0))),
-        )
+        g_pes = float(g_pessoal_yr.get(y, g_ab74))
+        pessoal_eoep_rolling = pessoal_eoep_rolling * (1 + g_pes)
 
+        iva_cred_y = iva_cred_base
         for k in range(2026, y + 1):
-            iva_part *= 1 + (g_ab73 if k == 2026 else g_ab74)
+            iva_cred_y *= 1 + (g_ab73 if k == 2026 else g_ab74)
 
-        eoep_cred[y] = iva_part + float(irc_anual.get(y, 0.0))
+        eoep_cred[y] = pessoal_eoep_rolling + float(irc_anual.get(y, 0.0)) + iva_cred_y
 
     return pd.DataFrame(
         [
@@ -156,7 +174,14 @@ def eoep_calendario_mensal(
     iva_venda = iva_efetivo_vendas(a)
     iva_fse   = float(a.impostos.get("IVA_FSE",   0.15))
     iva_cmvmc = float(a.impostos.get("IVA_CMVMC", 0.23))  # CIVA art. 18.º §1 al. c)
-    tsu = a.impostos["TSU_Empresa"]
+
+    # TSU total (patronal 23,75% + trabalhador 11%) aplicada à parcela de remunerações.
+    # remun_pct_total: Remuneracoes / total_pessoal anual (âncora 2024 = 79,52%).
+    tsu_empresa   = float(a.impostos.get("TSU_Empresa",     0.2375))
+    tsu_trabalhador = float(a.impostos.get("TSU_Trabalhador", 0.11))
+    tsu_total     = tsu_empresa + tsu_trabalhador
+    remun_pct     = float(a.pessoal_contab.get("remun_pct_total", 0.7952))
+    irs_taxa      = float(a.pessoal_contab.get("irs_retencao_folha", 0.10))
 
     iva_liq = {
         m: vn_mensal.get(m, 0.0) * iva_venda
@@ -187,33 +212,38 @@ def eoep_calendario_mensal(
         if target_idx <= 12:
             iva_pagamento[MESES[target_idx - 1]] += iva_saldo[m]
 
-    ss_pagamento = {
-        m: 0.0
-        for m in MESES
-    }
+    # SS base de cálculo: remunerações brutas = total_pessoal × remun_pct_total.
+    # Taxa total = TSU patronal (23,75%) + TSU trabalhador (11%) = 34,75%.
+    # Pagamento em M+1 (art. 5.º DL 199/99).
+    ss_base = {m: pessoal_mensal.get(m, 0.0) * remun_pct for m in MESES}
 
+    ss_pagamento = {m: 0.0 for m in MESES}
     for m in MESES:
         target_idx = MESES_NUM[m] + 1
-
         if target_idx <= 12:
-            ss_pagamento[MESES[target_idx - 1]] += (
-                pessoal_mensal.get(m, 0.0) * tsu
-            )
+            ss_pagamento[MESES[target_idx - 1]] += ss_base[m] * tsu_total
+
+    # IRS retido na fonte (pago até ao dia 20 do mês seguinte — art. 98.º CIRS).
+    irs_base = {m: pessoal_mensal.get(m, 0.0) * remun_pct for m in MESES}
+
+    irs_pagamento = {m: 0.0 for m in MESES}
+    for m in MESES:
+        target_idx = MESES_NUM[m] + 1
+        if target_idx <= 12:
+            irs_pagamento[MESES[target_idx - 1]] += irs_base[m] * irs_taxa
 
     # art. 96.º n.º 1 CIRC: PPC = 85 % do IRC liquidado no ano anterior (VN > €500k).
-    # art. 96.º n.º 5 CIRC: 3 prestações — Julho 25 %, Setembro 25 %, Dezembro 50 %.
+    # art. 96.º n.º 5 CIRC: 3 prestações iguais em Julho, Setembro e Dezembro.
     ppc_total = float(irc_2024_pago) * 0.85
 
     irc_ppc = {m: 0.0 for m in MESES}
-    irc_ppc["Jul"] = ppc_total * 0.25
-    irc_ppc["Set"] = ppc_total * 0.25
-    irc_ppc["Dez"] = ppc_total * 0.50
+    irc_ppc["Jul"] = ppc_total / 3
+    irc_ppc["Set"] = ppc_total / 3
+    irc_ppc["Dez"] = ppc_total - irc_ppc["Jul"] - irc_ppc["Set"]
 
-    # SS acumulado no próprio mês (pago no mês seguinte — útil para apurar saldo Dec)
-    ss_acumulado = {
-        m: pessoal_mensal.get(m, 0.0) * tsu
-        for m in MESES
-    }
+    # Acumulados de dezembro — ficam pendentes no balanço de 31/12 (pagos em janeiro).
+    ss_acumulado  = {m: ss_base[m]  * tsu_total for m in MESES}
+    irs_acumulado = {m: irs_base[m] * irs_taxa  for m in MESES}
 
     rows = []
 
@@ -221,6 +251,7 @@ def eoep_calendario_mensal(
         total_saidas_fiscais = (
             iva_pagamento[m]
             + ss_pagamento[m]
+            + irs_pagamento[m]
             + irc_ppc[m]
         )
 
@@ -233,6 +264,8 @@ def eoep_calendario_mensal(
                 "iva_pagamento_mes": iva_pagamento[m],
                 "ss_acumulado_periodo": ss_acumulado[m],
                 "ss_pagamento_mes": ss_pagamento[m],
+                "irs_acumulado_periodo": irs_acumulado[m],
+                "irs_pagamento_mes": irs_pagamento[m],
                 "irc_ppc_mes": irc_ppc[m],
                 "total_saidas_fiscais": total_saidas_fiscais,
             }

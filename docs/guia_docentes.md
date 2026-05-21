@@ -186,7 +186,31 @@ Persistem em `src/engine/data/cenarios/custom_scenarios.yaml`.
 
 ---
 
-### 4.9 Tracker de Objetivos SMART (M3)
+### 4.9 Exportação para Excel
+
+```
+GET /api/export/excel?cenario=Base&hub_on=false&ecogres_on=true
+```
+
+Gera um ficheiro `.xlsx` com todas as demonstrações e outputs do modelo. Quando `hub_on=true` inclui folhas adicionais `Hub_Viabilidade` e `Hub_Divida`.
+
+| Folha | Conteúdo |
+|---|---|
+| `DR` | Demonstração de Resultados 2024-2029 |
+| `Balanço` | Balanço 2024-2029 |
+| `DFC` | Demonstração de Fluxos de Caixa 2024-2029 |
+| `KPIs` | Rácios e indicadores financeiros |
+| `FSE` | FSE anual por rubrica (14 rubricas) |
+| `Pessoal` | Detalhe contabilístico de pessoal |
+| `Produção` | Orçamento de produção por produto |
+| `Pressupostos` | Pressupostos consolidados (Secção / Parâmetro / Valor) |
+| `Hub_Viabilidade` | VAL, TIR, Payback, IR, FCF por ano *(hub_on=true)* |
+| `Hub_Divida` | Mapa de serviço da dívida (DSCR) *(hub_on=true)* |
+| `Info` | Metadados (cenário, data de exportação, versão) |
+
+---
+
+### 4.10 Tracker de Objetivos SMART (M3)
 
 ```
 GET /api/smart/tracker?cenario=Base&hub_on=false&ecogres_on=false
@@ -310,6 +334,7 @@ dataframe_to_records() ──► API (JSON)
 | CMVMC mensal independente | `cmvmc_mensal_2025` em `run_model` | ✅ |
 | Base BAU M6 solidificada | `schedules.yaml` — CAPEX 900k, amort. 5,53M | ✅ |
 | Sistematização objetivos SMART (M3) | `GET /api/smart/tracker` + `smart_objetivos.yaml` | ✅ |
+| Exportação Excel (todas as demonstrações) | `GET /api/export/excel` | ✅ |
 
 ---
 
@@ -387,4 +412,4 @@ pytest tests/
 
 ---
 
-*GrestelPy · Engine v0.7 · PEF 2025-26 · Grupo G18 · ISCA-UA · actualizado 2026-05-18*
+*GrestelPy · Engine v0.9.5 · PEF 2025-26 · Grupo G18 · ISCA-UA · actualizado 2026-05-21*

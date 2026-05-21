@@ -104,6 +104,7 @@ GET  /api/hub/debt-service             → mapa de serviço da dívida (DSCR anu
 GET  /api/hub/investment-map           → mapa de investimento (CAPEX pools + NFM) — OE4
 GET  /api/ecogres                      → projecções Ecogres
 GET  /api/custom-scenarios             → cenários customizados guardados
+GET  /api/export/excel                 → exportação Excel (.xlsx) com todas as demonstrações
 ```
 
 ---
@@ -122,6 +123,18 @@ src/engine/data/
 ├── cenarios/                ← cenários customizados (built-in em loader.py)
 └── subsidiarias/            ← Ecogres e Hub Logístico (fases 1+2)
 ```
+
+### Scripts de extracção (export/)
+
+Scripts standalone para imprimir dados no terminal — úteis para preparar os relatórios M6/OE4 sem servidor:
+
+```
+export/extract_hub_data.py    ← viabilidade Hub, FCF, DSCR, análise tornado
+export/extract_scenarios.py   ← KPIs dos 4 cenários com e sem Hub
+export/extract_sem_hub.py     ← AF e KPIs consolidados sem Hub (comparativo)
+```
+
+Executar a partir da raiz do projecto: `python export/extract_hub_data.py`
 
 ---
 

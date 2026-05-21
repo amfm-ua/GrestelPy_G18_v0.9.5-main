@@ -167,18 +167,20 @@ class TestReconciliacaoMensalAnual(_Base):
         self.assertAlmostEqual(soma, anual, delta=self._tol(anual))
 
     def test_ebitda_mensal_coerente_internamente(self):
-        """EBITDA = VN − CMVMC − FSE − pessoal em cada linha do DR mensal.
+        """EBITDA mensal = VN − CMVMC − FSE − pessoal + outros_rendimentos_liq − rend_fin.
 
-        O DR mensal é simplificado (sem outros_rendimentos, var_inventários, etc.),
-        pelo que a sua soma não reconcilia com o EBITDA anual completo. Testamos
-        a coerência aritmética interna: a coluna ebitda é derivada correctamente
-        das suas componentes.
+        O EBITDA inclui um ajuste de articulação (outros_ebitda_m) distribuído
+        uniformemente por 12 meses para fechar com o EBITDA anual completo.
+        A coluna outros_rendimentos_liq = outros_ebitda_m + rend_financeiros.
         """
         df = self.dfs["dr_mensal_2025"]
         for _, row in df.iterrows():
-            expected = row["vn"] - row["cmvmc"] - row["fse"] - row["gastos_pessoal"]
+            outros_ebitda = float(row["outros_rendimentos_liq"]) - float(row["rend_financeiros"])
+            expected = (float(row["vn"]) - float(row["cmvmc"])
+                        - float(row["fse"]) - float(row["gastos_pessoal"])
+                        + outros_ebitda)
             self.assertAlmostEqual(
-                float(row["ebitda"]), float(expected), delta=1.0,
+                float(row["ebitda"]), expected, delta=2.0,
                 msg=f"EBITDA inconsistente em {row['mes']}: "
                     f"ebitda={row['ebitda']}, calculado={expected:.0f}",
             )
@@ -265,7 +267,7 @@ class TestEoepSaldos2025(_Base):
         )
 
     def test_eoep_credor_2025_deriva_do_mensal(self):
-        """eoep_credor 2025 = IVA credor + SS Dez + IRC residual (via calendário mensal)."""
+        """eoep_credor 2025 = IVA credor + SS Dez + IRS Dez + IRC residual (via calendário mensal)."""
         from src.engine.modelo.eoep import eoep_anual
 
         iva_outstanding = (
@@ -273,11 +275,12 @@ class TestEoepSaldos2025(_Base):
             + self.m_map["Dez"]["iva_saldo_periodo"]
         )
         iva_credor = iva_outstanding if iva_outstanding >= 0 else 0.0
-        ss_dez = self.m_map["Dez"]["ss_acumulado_periodo"]
+        ss_dez  = self.m_map["Dez"]["ss_acumulado_periodo"]
+        irs_dez = self.m_map["Dez"].get("irs_acumulado_periodo", 0.0)
         irc_ppc_total = float(self.eoep_m["irc_ppc_mes"].sum())
         irc_2025 = float(self.sched.reference_dr["irc"].get(2025, 0.0))
         irc_residual = max(0.0, irc_2025 - irc_ppc_total)
-        expected_cred = iva_credor + ss_dez + irc_residual
+        expected_cred = iva_credor + ss_dez + irs_dez + irc_residual
 
         irc_anual_d = {y: float(self.sched.reference_dr["irc"].get(y, 0.0))
                        for y in (2025, 2026, 2027, 2028, 2029)}
@@ -290,7 +293,7 @@ class TestEoepSaldos2025(_Base):
             delta=max(1.0, expected_cred * 0.001),
             msg=(
                 f"eoep_credor esperado {expected_cred:.0f} "
-                f"(IVA={iva_credor:.0f} + SS={ss_dez:.0f} + IRC={irc_residual:.0f}), "
+                f"(IVA={iva_credor:.0f} + SS={ss_dez:.0f} + IRS={irs_dez:.0f} + IRC={irc_residual:.0f}), "
                 f"obtido {actual_cred:.0f}"
             ),
         )

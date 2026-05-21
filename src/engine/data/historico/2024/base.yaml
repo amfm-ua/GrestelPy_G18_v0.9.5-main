@@ -98,10 +98,10 @@ fse_detalhe_2024:
 pessoal_detalhe_2024:
   # Subdivisão contabilística
   rubricas_contab:
-    Remuneracoes:      11400000.00   # Nota 28 — salários brutos incl. sub. férias/natal
-    Encargos_TSU:       2707500.00   # 23,75% × 11 400 000 (TSU patronal)
-    Seguros_AT:          150480.00   # ~1,32% × 11 400 000 (prémio SAT — cerâmica)
-    Outros_Encargos:     113377.70   # Residual: formação, part. lucros IAS 19, outros
+    Remuneracoes:      11428817.69   # Nota 28 — salários brutos incl. sub. férias/natal (R&C 2024 auditado)
+    Encargos_TSU:       2211532.19   # 23,75% × Rem. reais (R&C 2024 auditado)
+    Seguros_AT:          135102.98   # ~1,18% × Rem. reais (R&C 2024 auditado)
+    Outros_Encargos:     595904.84   # Residual real (formação, part. lucros, outros — R&C 2024)
   # Subdivisão departamental (imputação funcional sobre 734 FTE × custo médio 19 578 €)
   departamentos:
     Producao:           9341382.51   # 65% — operações fabris
@@ -111,7 +111,8 @@ pessoal_detalhe_2024:
     Marketing:          1149708.62   # 8%  — comunicação e marcas
 
 saldos_historicos:
-  EOEP_devedor: 688519.62
+  EOEP_devedor:  688519.62
+  EOEP_credor:   333200.29   # IRS retido 78694.23 + SS patronal+trabalhador 254506.06 (R&C 2024)
   Outros_credores_locacoes: 1237541.08
 investimento_financiamento_2024:
   AFT_liquido_2024: 12466455.49

@@ -1,7 +1,6 @@
 """
 Módulo: engine/pessoal/pessoal.py — Gastos com Pessoal (Folha de Salários)
 Versão: v2 — Estrutura modular temática
-Idioma: Português Europeu
 
 OBJETIVO ACADÉMICO:
 Calcula o custo total anual de pessoal (salários + encargos patronais).
@@ -182,6 +181,9 @@ def pessoal_anual(
             {
                 "ano": y,
                 "gastos_pessoal": vals[y],
+                "headcount": hc_effective[y],
+                "custo_medio": vals[y] / hc_effective[y] if hc_effective.get(y) else 0.0,
+                "peso_vn_pct": vals[y] / vn_map[y] if vn_map.get(y) else None,
             }
             for y in ALL_YEARS
         ]

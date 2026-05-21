@@ -1,6 +1,6 @@
 # GrestelPy — Project Tree
 
-> Estado actual: Engine v0.9.2 · actualizado 2026-05-20
+> Estado actual: Engine v0.9.5 · actualizado 2026-05-21
 
 ```
 GrestelPy_G18/
@@ -10,22 +10,16 @@ GrestelPy_G18/
 ├── start.sh                               ← Lança o servidor (Linux/Mac)
 ├── pyproject.toml                         ← Configuração pacote (Python ≥ 3.10)
 ├── requirements.txt                       ← Dependências runtime
-├── check_logic.py                         ← Script de verificação de coerência lógica do modelo
 ├── .gitignore
 │
 ├── docs/
-│   ├── PEF_2025-26_Resumo_M3_M6_OE4.md  ← Enquadramento académico completo
 │   ├── guia_docentes.md                  ← Documentação endpoints e outputs
-│   ├── API.md                            ← Referência completa da API REST
-│   ├── M6.md                             ← Documentação do projecto Hub Logístico 4.0
-│   ├── M1.md                             ← Análise financeira M1
-│   ├── OE1.md … OE5.md                   ← Objectivos de estudo OE1 a OE5
-│   ├── SMART.md                          ← Definição dos 5 objetivos SMART (M3)
-│   ├── Manual_Estudante.md               ← Manual de utilização
-│   ├── hub_logistico_info.md             ← Ficha técnica Hub Logístico 4.0
-│   ├── monte_carlo.md                    ← Metodologia Monte Carlo (VAL/TIR)
-│   ├── pt2030.md                         ← PT2030 — enquadramento e regras de reconhecimento
 │   └── project_tree.md                   ← Este ficheiro
+│
+├── export/                                ← Scripts standalone de extracção de dados
+│   ├── extract_hub_data.py               ← Imprime viabilidade Hub, FCF, DSCR para os relatórios M6/OE4
+│   ├── extract_scenarios.py              ← Imprime KPIs dos 4 cenários com e sem Hub
+│   └── extract_sem_hub.py               ← Imprime AF e KPIs consolidados sem Hub (comparativo)
 │
 ├── interface/                             ← Interface web (HTML/JSX — sem bundler)
 │   ├── index.html
@@ -49,6 +43,10 @@ GrestelPy_G18/
 │   │       ├── scenarios.py              ← Execução de cenários + /api/run
 │   │       ├── custom_scenarios.py       ← CRUD cenários customizados
 │   │       ├── rolling.py                ← Rolling forecast mensal
+│   │       ├── export.py                 ← GET /api/export/excel → ficheiro .xlsx (openpyxl)
+│   │       │                                 Folhas: DR, Balanço, DFC, KPIs, FSE, Pessoal,
+│   │       │                                 Produção, Pressupostos, Hub_Viabilidade*, Hub_Divida*, Info
+│   │       │                                 (* apenas quando hub_on=true)
 │   │       ├── hub.py                    ← Projecto Hub Logístico (M6)
 │   │       │                                 GET /api/hub/viability       → VAL, TIR, Payback, IR
 │   │       │                                 GET /api/hub/tornado          → sensibilidade VAL
@@ -259,6 +257,7 @@ YAML inputs
 ```
 tests/
 ├── conftest.py                       ← Fixtures pytest (cenário Base pré-carregado)
+├── check_logic.py                    ← Script de verificação de coerência lógica do modelo
 ├── test_api_detail.py                ← Detalhe dos campos da API
 ├── test_api_model.py                 ← Integridade do modelo (DR ↔ Balanço ↔ DFC)
 ├── test_api_reconcil.py              ← Reconciliações financeiras (identidades contabilísticas)
