@@ -43,6 +43,10 @@ if errorlevel 1 (
     exit /b 1
 )
 
+:: Adicionar python portatil ao PATH do utilizador
+setx PATH "%~dp0python;%PATH%" >nul 2>&1
+set PATH=%~dp0python;%PATH%
+
 echo.
 echo ============================================
 echo  Configuracao concluida!
