@@ -13,6 +13,7 @@ const NAV = [
   { id: "vendas",       label: "Análise de Vendas", group: "Análise" },
   { id: "kpis",         label: "KPIs & Rácios",     group: "Análise" },
   { id: "fse",          label: "FSE",     group: "Análise" },
+  { id: "pessoal",      label: "Gastos com Pessoal", group: "Análise" },
   { id: "rolling",        label: "Rolling Forecast 2025",   group: "Análise" },
   { id: "smart",          label: "Objetivos SMART",        group: "Análise" },
   { id: "sensibilidade",  label: "Análise de Sensibilidade", group: "Análise" },
@@ -75,6 +76,7 @@ function App() {
           dfc: data.dfc,
           kpis: data.kpis,
           fse: data.fse,
+          pessoal: data.pessoal,
           scenario, hubOn: effectiveHubOn, ecogresOn,
         });
         setLoading(false);
@@ -118,6 +120,7 @@ function App() {
                   {view === "kpis" && <KPIView ctx={ctx} />}
                   {view === "vendas" && <VendasView ctx={ctx} />}
                   {view === "fse" && <FSEView ctx={ctx} />}
+                  {view === "pessoal" && <PessoalView ctx={ctx} />}
                   {view === "rolling" && <RollingView ctx={ctx} />}
                   {view === "smart" && <SmartView ctx={ctx} />}
                   {view === "sensibilidade" && <SensibilidadeView ctx={ctx} />}

@@ -3070,10 +3070,164 @@ function ProducaoView({ ctx }) {
   );
 }
 
+// ---- Gastos com Pessoal -----------------------------------------------------
+function PessoalView({ ctx }) {
+  const { pessoal } = ctx;
+  if (!pessoal) return <div className="panel"><div className="panel-body">Sem dados de pessoal.</div></div>;
+
+  const { anual, contab, depart, mensal } = pessoal;
+  const anos = GRESTEL.YEARS;
+  const anualMap = Object.fromEntries((anual || []).map(r => [r.ano, r]));
+  const r2024 = anualMap[2024] || {};
+  const r2025 = anualMap[2025] || {};
+  const totais = anos.map(y => (anualMap[y] || {}).gastos_pessoal || 0);
+
+  // Contab breakdown
+  const contabKeys = Object.keys(contab || {});
+  const contabStackGroups = anos.map((y, i) => ({
+    label: String(y),
+    bars: contabKeys.map((k, ki) => ({ key: k, value: (contab[k] || [])[i] || 0, color: MIX_PALETTE_4[ki % 4] })),
+  }));
+  const contabDonut = contabKeys.map((k, ki) => ({
+    label: k.replace(/_/g, " "),
+    value: (contab[k] || [])[0] || 0,
+    color: MIX_PALETTE_4[ki % 4],
+  }));
+
+  // Departamentos
+  const departKeys = Object.keys(depart || {});
+  const departStackGroups = anos.map((y, i) => ({
+    label: String(y),
+    bars: departKeys.map((k, ki) => ({ key: k, value: (depart[k] || [])[i] || 0, color: MIX_PALETTE_7[ki % 7] })),
+  }));
+  const departDonut = departKeys.map((k, ki) => ({
+    label: k,
+    value: (depart[k] || [])[0] || 0,
+    color: MIX_PALETTE_7[ki % 7],
+  }));
+
+  // Mensal 2025
+  const MESES_PT = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+  const mensal25Map = Object.fromEntries((mensal || []).filter(r => r.mes).map(r => [r.mes, r]));
+  const mensalGroups = MESES_PT.map(m => ({
+    label: m,
+    bars: [{ key: "Pessoal", value: (mensal25Map[m] || {}).gastos_pessoal || 0, color: MIX_PALETTE_4[1] }],
+  }));
+
+  const totalEvol = anos.map((y, i) => ({
+    label: String(y),
+    bars: [{ key: "Pessoal", value: totais[i], color: MIX_PALETTE_4[1] }],
+  }));
+
+  return (
+    <>
+      <div className="grid-kpis" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+        <KPI label="Gastos com Pessoal 2024" value={fmt.eurC(r2024.gastos_pessoal || 0)} sub="auditado · R&C 2024" />
+        <KPI
+          label="Gastos com Pessoal 2025"
+          value={fmt.eurC(r2025.gastos_pessoal || 0)}
+          trend={r2024.gastos_pessoal ? (r2025.gastos_pessoal - r2024.gastos_pessoal) / r2024.gastos_pessoal : null}
+          sub="vs. 2024 real"
+        />
+        <KPI label="Headcount 2025" value={fmt.num(r2025.headcount || 0)} sub="efectivos · FTE" />
+        <KPI
+          label="Custo Médio 2025"
+          value={fmt.eur(r2025.custo_medio || 0)}
+          sub={"peso VN: " + fmt.pct(r2025.peso_vn_pct || 0)}
+        />
+      </div>
+
+      <Panel title="Evolução · Gastos com Pessoal" sub="€ · 2024 auditado + projeção 2025–2029">
+        <BarChart groups={totalEvol} height={200} />
+      </Panel>
+
+      <div className="grid-2-3">
+        <Panel title="Composição contabilística · por ano" sub="€ · Nota 28 IAS 19">
+          <BarChart groups={contabStackGroups} stacked height={280} />
+        </Panel>
+        <Panel title="Mix contabilístico 2024" sub="R&C 2024 auditado">
+          <Donut items={contabDonut} />
+          <div className="legend-col" style={{ marginTop: 10 }}>
+            {contabDonut.map((it, i) => (
+              <div key={i} className="legend-row">
+                <span className="swatch" style={{ background: it.color }} />
+                <span className="legend-label">{it.label}</span>
+                <span className="legend-value mono">{fmt.eurC(it.value)}</span>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </div>
+
+      <div className="grid-2-3">
+        <Panel title="Distribuição departamental · por ano" sub="€ · imputação funcional">
+          <BarChart groups={departStackGroups} stacked height={280} />
+        </Panel>
+        <Panel title="Mix departamental 2024" sub="734 FTE · pesos estimados">
+          <Donut items={departDonut} />
+          <div className="legend-col" style={{ marginTop: 10 }}>
+            {departDonut.map((it, i) => (
+              <div key={i} className="legend-row">
+                <span className="swatch" style={{ background: it.color }} />
+                <span className="legend-label">{it.label}</span>
+                <span className="legend-value mono">{fmt.eurC(it.value)}</span>
+              </div>
+            ))}
+          </div>
+        </Panel>
+      </div>
+
+      <Panel title="Sazonalidade mensal 2025" sub="€ · folha de salários por mês">
+        <BarChart groups={mensalGroups} height={200} />
+      </Panel>
+
+      <Panel title="Detalhe anual" sub="2024–2029">
+        <table className="ftable">
+          <thead>
+            <tr>
+              <th>Rubrica</th>
+              {anos.map(y => <th key={y} className="mono num">{y}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Total Pessoal</td>
+              {totais.map((v, i) => <td key={i} className="mono num">{fmt.eur(v)}</td>)}
+            </tr>
+            <tr>
+              <td>Headcount (FTE)</td>
+              {anos.map((y, i) => <td key={i} className="mono num">{fmt.num((anualMap[y] || {}).headcount || 0)}</td>)}
+            </tr>
+            <tr>
+              <td>Custo Médio</td>
+              {anos.map((y, i) => <td key={i} className="mono num">{fmt.eur((anualMap[y] || {}).custo_medio || 0)}</td>)}
+            </tr>
+            <tr>
+              <td>Peso no VN</td>
+              {anos.map((y, i) => <td key={i} className="mono num">{fmt.pct((anualMap[y] || {}).peso_vn_pct || 0)}</td>)}
+            </tr>
+            <tr className="row-sep"><td colSpan={anos.length + 1}></td></tr>
+            {contabKeys.map(k => (
+              <tr key={k}>
+                <td>{k.replace(/_/g, " ")}</td>
+                {anos.map((_, i) => <td key={i} className="mono num">{fmt.eur((contab[k] || [])[i] || 0)}</td>)}
+              </tr>
+            ))}
+            <tr className="is-total">
+              <td>Total Pessoal</td>
+              {totais.map((v, i) => <td key={i} className="mono num">{fmt.eur(v)}</td>)}
+            </tr>
+          </tbody>
+        </table>
+      </Panel>
+    </>
+  );
+}
+
 Object.assign(window, {
   DRView, BalancoView, DFCView, KPIView, FSEView, RollingView,
   HubView, HubViabilidadeView, HubMonteCarloView, HubOE4View, FundingCard,
   HubComparativoDR, HubComparativoKPIs, HubConsolidadoView,
   EcogresView, PressupostosView, VendasView, SmartView, SmartBadge, KV, YamlEditorView,
-  SensibilidadeView, CenariosView, ProducaoView,
+  SensibilidadeView, CenariosView, ProducaoView, PessoalView,
 });

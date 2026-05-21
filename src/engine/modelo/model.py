@@ -103,6 +103,12 @@ def run_model(
     except Exception:
         dfs["fse_detalhe_anual"] = pd.DataFrame(columns=["ano", "rubrica", "valor"])
 
+    # Pessoal anual (totais + headcount + custo médio)
+    try:
+        dfs["pessoal_anual"] = pessoal_mod.pessoal_anual(a, base, df_total)
+    except Exception:
+        dfs["pessoal_anual"] = pd.DataFrame(columns=["ano", "gastos_pessoal", "headcount", "custo_medio", "peso_vn_pct"])
+
     # Pessoal detalhe contabilístico e departamental
     try:
         dfs["pessoal_contab_anual"] = pessoal_mod.pessoal_contab_anual(a, base, df_total)

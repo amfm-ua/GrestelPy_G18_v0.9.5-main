@@ -52,6 +52,12 @@ const API = (() => {
       dfc:     normalizeDFC(outputs.dfc || []),
       kpis:    normalizeKPIs(outputs.kpis || []),
       fse:     normalizeFSE(outputs.fse_detalhe_anual || []),
+      pessoal: {
+        anual:  outputs.pessoal_anual  || [],
+        contab: normalizePessoalContab(outputs.pessoal_contab_anual || []),
+        depart: normalizePessoalDepart(outputs.pessoal_depart_anual || []),
+        mensal: outputs.pessoal_mensal_2025 || [],
+      },
     };
   }
 
@@ -223,6 +229,30 @@ const API = (() => {
       if (!out[row.rubrica]) out[row.rubrica] = new Array(years.length).fill(0);
       const yi = years.indexOf(row.ano);
       if (yi >= 0) out[row.rubrica][yi] = row.valor || 0;
+    }
+    return out;
+  }
+
+  // Pessoal contab: [{ano, rubrica, valor}] → {rubrica: [val por ano]}.
+  function normalizePessoalContab(rows) {
+    const years = GRESTEL.YEARS;
+    const out = {};
+    for (const row of rows) {
+      if (!out[row.rubrica]) out[row.rubrica] = new Array(years.length).fill(0);
+      const yi = years.indexOf(row.ano);
+      if (yi >= 0) out[row.rubrica][yi] = row.valor || 0;
+    }
+    return out;
+  }
+
+  // Pessoal depart: [{ano, departamento, valor}] → {dept: [val por ano]}.
+  function normalizePessoalDepart(rows) {
+    const years = GRESTEL.YEARS;
+    const out = {};
+    for (const row of rows) {
+      if (!out[row.departamento]) out[row.departamento] = new Array(years.length).fill(0);
+      const yi = years.indexOf(row.ano);
+      if (yi >= 0) out[row.departamento][yi] = row.valor || 0;
     }
     return out;
   }
