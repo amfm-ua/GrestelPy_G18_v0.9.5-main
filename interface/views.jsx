@@ -553,7 +553,7 @@ function HubViabilidadeView({ ctx }) {
   if (error && !viab) return <ErrorBanner message={error} onRetry={() => setError(null)} />;
   if (!viab) return null;
 
-  const wacc = viab.parametros?.wacc || 0.08;
+  const wacc = viab.parametros?.wacc || 0.082;
   const fcfSeries = [
     { labels: (viab.anos || []).map(String), values: viab.fcf || [], color: "var(--ink)" },
     { labels: (viab.anos || []).map(String), values: viab.fcf_cumulativo || [], color: "var(--accent)", fill: true },
@@ -730,7 +730,7 @@ function HubViabilidadeView({ ctx }) {
               <tbody>
                 {SC_LIST.map(sc => {
                   const d = viabCenarios ? (viabCenarios[sc] || {}) : {};
-                  const wacc_v = viab?.parametros?.wacc || 0.08;
+                  const wacc_v = viab?.parametros?.wacc || 0.082;
                   return (
                     <tr key={sc}>
                       <td><span style={{ color: SC_COLORS[sc], fontWeight: 700 }}>●</span> {sc}</td>
@@ -760,7 +760,7 @@ function HubViabilidadeView({ ctx }) {
                     <td className={"mono num " + (probsValid ? (eVpl >= 0 ? "pos" : "neg") : "muted")}>
                       {probsValid ? fmt.eurC(eVpl) : "—"}
                     </td>
-                    <td className={"mono num " + (probsValid && tirCount > 0 ? (eTir >= (viab?.parametros?.wacc || 0.08) ? "pos" : "neg") : "muted")}>
+                    <td className={"mono num " + (probsValid && tirCount > 0 ? (eTir >= (viab?.parametros?.wacc || 0.082) ? "pos" : "neg") : "muted")}>
                       {probsValid && tirCount > 0 ? fmt.pct(eTir, 1) : "—"}
                     </td>
                     <td className="mono num">{probsValid && pbCount > 0 ? ePb.toFixed(1) + " a" : "—"}</td>
@@ -967,7 +967,7 @@ function HubConsolidadoView({ consol }) {
             <KV k="Payback atualizado" v={hub.payback_atualizado != null ? Number(hub.payback_atualizado).toFixed(1) + " anos" : "—"} />
             <KV k="CAPEX" v={fmt.eurC(hub.capex_base || 0)} />
             <KV k="PT2030" v={fmt.eurC(hub.pt2030_montante || 0)} />
-            <KV k="WACC" v={fmt.pct(hub.wacc || 0.08, 0)} />
+            <KV k="WACC" v={fmt.pct(hub.wacc || 0.082, 0)} />
             <KV k="Índice rendibilidade" v={hub.indice_rendibilidade != null ? hub.indice_rendibilidade.toFixed(2) + "×" : "—"} />
           </dl>
         </div>

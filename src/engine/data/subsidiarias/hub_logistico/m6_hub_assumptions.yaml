@@ -278,8 +278,9 @@ projeto_hub:
     carry_forward_anos: 10
 
   viabilidade:
-    # Fluxos nominais (preços correntes) — WACC nominal 8 % (Fisher).
-    wacc: 0.08
+    # Fluxos nominais (preços correntes) — WACC nominal 8,2 % derivado dos componentes CAPM.
+    # Cálculo: w_e × Ke + w_d × Kd × (1−t) = 0,25 × 23,6 % + 0,75 × 4,02 % × 0,755 = 8,2 %
+    wacc: 0.082
     # Taxa combinada IRC: 20,0 % + 1,5 % derrama municipal + 3,0 % derrama estadual = 24,5 %
     irc_taxa: 0.245
     eur_usd_base: 1.08
@@ -290,7 +291,10 @@ projeto_hub:
     # o peso do capital próprio aumenta. Como Ke > Kd(1-t), o WACC sobe ao longo
     # do tempo — penalizando os FCF mais distantes (efeito desalavancagem).
     wacc_dinamico: true
-    ke: 0.192              # Custo do capital próprio — CAPM: rf 3 % + β_l 2,94 × ERP 5,5 %
-                           # (β_u 0,9 × (1 + 0,755 × 4,5/1,5) = 2,94 com D/E inicial = 3)
-    kd: 0.0402             # Custo médio ponderado da dívida: (3M×4,15%+1,5M×3,75%)/4,5M = 4,02 %
-    equity_inicial: 1500000  # Capital próprio investido = 25 % × CAPEX 6 M€
+    rf: 0.030                  # Taxa sem risco — OT Portugal 10 anos (2024-2025)
+    erp: 0.070                 # ERP Portugal — Damodaran 2025 (base EUA 5,5 % + CRP Portugal ≈ 1,5 %)
+    beta_u: 0.90               # Beta desalavancado — sector logística/transporte Europa (Damodaran)
+    ke: 0.236                  # Custo do capital próprio — CAPM: rf 3 % + β_l 2,94 × ERP 7,0 %
+                               # β_l = β_u × (1 + (1−t) × D/E) = 0,9 × (1 + 0,755 × 3) = 2,94
+    kd: 0.0402                 # Custo médio ponderado da dívida: (3M×4,15%+1,5M×3,75%)/4,5M = 4,02 %
+    equity_inicial: 1500000    # Capital próprio investido = 25 % × CAPEX 6 M€

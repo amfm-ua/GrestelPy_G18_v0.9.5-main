@@ -88,7 +88,7 @@ def _flatten_assumptions(a) -> dict[str, Any]:
 
     h = raw.get("hub_logistico", {}).get("projeto_hub", {}) or {}
     out["hub_capex_base"] = float((h.get("capex") or {}).get("base", 6_000_000))
-    out["hub_wacc"] = float((h.get("viabilidade") or {}).get("wacc", 0.08)) * 100
+    out["hub_wacc"] = float((h.get("viabilidade") or {}).get("wacc", 0.082)) * 100
     out["hub_cresc_beneficios"] = float((h.get("beneficios_anuais") or {}).get("crescimento_anual", 0.02)) * 100
 
     impostos = raw.get("impostos", {}) or {}

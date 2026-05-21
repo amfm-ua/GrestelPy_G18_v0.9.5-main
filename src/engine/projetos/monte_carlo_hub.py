@@ -16,7 +16,7 @@ Distribuições por driver:
   pt2030_taxa  Triangular(20 %, 45 %, 45 %)           — assimétrica (base = máximo aprovável)
   b2c          Normal truncada N(1,0; σ=0,20) ∈ [0,3; 2,0] — incerteza de mercado
   pessoal      Triangular(200 k€, 380 k€, 500 k€)    — eficácia da automação
-  wacc         Triangular(6 %, 8 %, 10 %)             — risco de financiamento
+  wacc         Triangular(6 %, 8,2 %, 10 %)           — risco de financiamento
   capex        Triangular(−15 %, base, +15 %)         — derrapagem de obra 4.0
 
 Dependências: apenas numpy + stdlib (sem scipy).
@@ -69,7 +69,7 @@ DEFAULT_DISTRIBUTIONS: dict[str, dict] = {
     "wacc": {
         "type": "triangular",
         "min": 0.06,
-        "mode": 0.08,
+        "mode": 0.082,
         "max": 0.10,
     },
     # capex: min/mode/max calculados em runtime (±15 % sobre proj["capex"]["base"])

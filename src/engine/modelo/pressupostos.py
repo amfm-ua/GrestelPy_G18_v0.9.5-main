@@ -162,7 +162,7 @@ def build_pressupostos_summary(
 
         hub_items = [
             _item("CAPEX base", round(float(capex_b.get("base", 5_500_000)), 0), "€"),
-            _item("WACC", _pct(viab_h.get("wacc", 0.08), 1), "%"),
+            _item("WACC", _pct(viab_h.get("wacc", 0.082), 1), "%"),
             _item("Taxa IRC Hub", _pct(viab_h.get("irc_taxa", 0.21), 1), "%"),
             _item("Crescimento benefícios anuais", _pct(benef_h.get("crescimento_anual", 0.02), 1), "%"),
             _item("Vida útil", int(hub_raw.get("vida_util_anos", 10)), "anos"),
