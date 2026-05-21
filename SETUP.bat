@@ -6,11 +6,19 @@ echo  GrestelPy - Configuracao Inicial
 echo ============================================
 echo.
 
+:: Verificar se Python portatil existe e esta funcional
 if exist "python\python.exe" (
-    echo Python portatil ja encontrado.
-    goto install_packages
+    python\python.exe -c "import socket" >nul 2>&1
+    if errorlevel 1 (
+        echo Python portatil corrompido. A re-instalar...
+        rmdir /s /q python
+    ) else (
+        echo Python portatil encontrado.
+        goto install_packages
+    )
 )
 
+:download_python
 echo A descarregar Python portatil (aprox. 12 MB)...
 powershell -Command "Invoke-WebRequest -Uri 'https://www.python.org/ftp/python/3.12.9/python-3.12.9-embed-amd64.zip' -OutFile 'python_embed.zip' -UseBasicParsing"
 if errorlevel 1 (
@@ -39,13 +47,10 @@ python\python.exe -m pip install -r requirements.txt --quiet
 if errorlevel 1 (
     echo.
     echo ERRO: Falha ao instalar dependencias.
-    pause
-    exit /b 1
+    echo A tentar re-instalar Python e dependencias...
+    rmdir /s /q python
+    goto download_python
 )
-
-:: Adicionar python portatil ao PATH do utilizador
-setx PATH "%~dp0python;%PATH%" >nul 2>&1
-set PATH=%~dp0python;%PATH%
 
 echo.
 echo ============================================
