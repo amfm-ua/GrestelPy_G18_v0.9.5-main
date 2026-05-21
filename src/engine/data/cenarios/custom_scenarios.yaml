@@ -1,0 +1,21 @@
+cenario: Base
+scenarios:
+
+  # ---------------------------------------------------------------------------
+  # NOTA: Filosofia B — spreads reais (Filosofia B)
+  #
+  # Todos os overrides de preços e custos abaixo são SPREADS REAIS.
+  # O engine compõe a inflação em runtime: nominal = (1+inf)×(1+real)−1
+  #
+  # Volume é grandeza física — valores directos (não compostos com inflação).
+  #
+  # Conversão de referência:
+  #   real = (1+nominal)/(1+inflação) − 1
+  #   Inflações: 2025≈2.2%, 2026=2.0%, 2027=1.8%, 2028=1.7%, 2029=1.6%
+  #
+  # NOTA SOBRE CENÁRIOS BUILT-IN:
+  #   Os cenários Base, Upside, Downside, Stress e Hub_Ativo são definidos
+  #   em loader.py (_SCENARIO_OVERRIDES) e têm prioridade sobre este ficheiro.
+  #   Defina aqui APENAS cenários personalizados adicionais não presentes em
+  #   loader.py. Duplicar esses cenários aqui não tem efeito (dead code).
+  # ---------------------------------------------------------------------------
