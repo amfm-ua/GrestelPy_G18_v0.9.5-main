@@ -116,8 +116,15 @@ def pessoal_anual(
 
     2026-2029:
         Gastos_Pessoal(y) = Gastos_Pessoal(y-1) × [1 + cresc_fixo(y) + alpha × ΔVN%(y)]
+
+    Headcount derivado (sem double-counting):
+        custo_medio_base(y) = custo_medio_base(y-1) × (1 + cresc_fixo)  — só inflação salarial
+        headcount(y) = Gastos_Pessoal(y) / custo_medio_base(y)
+
+        O alpha já incorpora o custo de novas contratações; derivar o HC a partir dos
+        custos evita contar o efeito do VN duas vezes (uma nos custos, outra no HC×salário).
+        Resultado: headcount_elasticidade_VN ≈ alpha (sem hub: 0.40; com hub: 0.15).
     """
-    # Mantido por compatibilidade futura; atualmente os dados vêm de assumptions.
     _ = base
 
     total_2024 = float(a.pessoal_params["custo_total_2024_auditado"])
@@ -149,6 +156,13 @@ def pessoal_anual(
         2025: total_2025,
     }
 
+    # Salário médio por cabeça crescendo apenas com inflação salarial (g_fixo).
+    # Separa o efeito "mais gente" do efeito "salários mais altos" dentro do alpha.
+    custo_medio_base = {
+        2024: custo_medio_2024,
+        2025: custo_medio_2025,
+    }
+
     hc_effective = {
         2024: hc_2024,
         2025: hc_2025,
@@ -162,19 +176,20 @@ def pessoal_anual(
 
         delta_vn_pct = (vn_y - vn_prev) / vn_prev if vn_prev else 0.0
 
-        base_cost = vals[y - 1] * (
-            1 + cresc_fixo + alpha * delta_vn_pct
-        )
+        # Custos totais: fórmula inalterada — alpha cobre salários + contratações implícitas
+        base_cost = vals[y - 1] * (1 + cresc_fixo + alpha * delta_vn_pct)
 
+        # Salário médio: só inflação salarial, sem efeito VN
+        custo_medio_base[y] = custo_medio_base[y - 1] * (1 + cresc_fixo)
+
+        # Ajuste explícito de headcount (reestruturações, novas áreas)
         delta_fte = float(ajuste_hc.get(y, ajuste_hc.get(str(y), 0.0)))
-
-        hc_prev = hc_effective.get(y - 1, hc_2025)
-        custo_medio_y = vals[y - 1] / hc_prev if hc_prev else 0.0
-
-        ajuste_custo = delta_fte * custo_medio_y
+        ajuste_custo = delta_fte * custo_medio_base[y]
 
         vals[y] = base_cost + ajuste_custo
-        hc_effective[y] = hc_prev + delta_fte
+
+        # HC derivado dos custos — zero double-counting
+        hc_effective[y] = vals[y] / custo_medio_base[y] if custo_medio_base[y] else 0.0
 
     return pd.DataFrame(
         [
@@ -182,7 +197,7 @@ def pessoal_anual(
                 "ano": y,
                 "gastos_pessoal": vals[y],
                 "headcount": hc_effective[y],
-                "custo_medio": vals[y] / hc_effective[y] if hc_effective.get(y) else 0.0,
+                "custo_medio": custo_medio_base.get(y, 0.0),
                 "peso_vn_pct": vals[y] / vn_map[y] if vn_map.get(y) else None,
             }
             for y in ALL_YEARS

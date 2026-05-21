@@ -79,10 +79,8 @@ pessoal:
   custo_total_2024_auditado: 14371357.7
   headcount_2024: 734
   headcount_2025: 744
-  headcount_2026: 744
-  headcount_2027: 744
-  headcount_2028: 744
-  headcount_2029: 744
+  # headcount 2026-2029 é derivado: total_custo / custo_medio_base(só inflação salarial)
+  # elasticidade implícita ≈ alpha_pessoal (ver elasticidade_pessoal abaixo)
   taxa_cresc_custo_2025: 0.035
   elasticidade_sem_hub: 0.85
   elasticidade_com_hub: 0.65
