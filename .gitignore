@@ -37,5 +37,8 @@ _baseline_outputs/
 *.xlsx
 *.csv
 
+# Python portátil (descarregado pelo SETUP.bat)
+python/
+
 # Build/Cache
 *.cache
