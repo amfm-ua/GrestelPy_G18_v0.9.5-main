@@ -1,4 +1,5 @@
 @echo off
+cd /d "%~dp0"
 title GrestelPy - Configuracao Inicial
 echo ============================================
 echo  GrestelPy - Configuracao Inicial
