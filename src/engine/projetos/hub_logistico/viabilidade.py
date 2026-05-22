@@ -182,6 +182,12 @@ def _vlq_ativos(hub: dict, ano_fim: int) -> float:
         anos_restantes_jc = max(ano_dep_jc_fim - ano_fim, 0)
         vlq += jc_total * anos_restantes_jc / vida_jc
 
+    # Terreno — custo de oportunidade (UC API, Doc 3): não depreciável → valor
+    # pleno recuperado no VR terminal, simétrico à saída registada em CFinv_t0.
+    terreno_cfg = proj.get("capex", {}).get("terreno_custo_oportunidade", {})
+    if terreno_cfg.get("inclui_em_cfinv", False):
+        vlq += float(terreno_cfg.get("valor", 0.0))
+
     return vlq
 
 

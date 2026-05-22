@@ -498,12 +498,26 @@ def hub_fcf(
         o efeito do benefício fiscal do benefício operacional. Ver hub_rfai()
         para a justificação académica da abordagem WACC vs. APV.
     """
+    proj = hub["projeto_hub"]
+
     dr_imp = hub_dr_impact(hub)
     df_cap = hub_capex(hub)
     nfm_map = hub_nfm(hub)
     rfai_map = hub_rfai(hub, irc_taxa=irc_taxa)
 
     capex_map = df_cap.set_index("ano")
+
+    # Custo de oportunidade do terreno — saída única no primeiro ano de CAPEX
+    # (UC API, Doc 3: ativos já detidos entram pelo custo de oportunidade; sem
+    # este ajuste o investimento inicial fica subavaliado e o VAL artificialmente alto)
+    terreno_cfg = proj.get("capex", {}).get("terreno_custo_oportunidade", {})
+    terreno_cof = 0.0
+    terreno_ano: int | None = None
+    if terreno_cfg.get("inclui_em_cfinv", False):
+        terreno_cof = float(terreno_cfg.get("valor", 0.0))
+        cronograma = proj.get("capex", {}).get("cronograma", {})
+        if cronograma:
+            terreno_ano = min(int(k) for k in cronograma)
 
     rows = []
 
@@ -522,6 +536,9 @@ def hub_fcf(
         # ΔNFM: saída de caixa real que reduz o FCF (não está na DR)
         delta_nfm_y = nfm_map.get(y, 0.0)
 
+        # Terreno: saída única no primeiro ano de CAPEX (custo de oportunidade)
+        terreno_y = terreno_cof if (terreno_cof and y == terreno_ano) else 0.0
+
         # NOPAT = EBIT × (1 − t); convenção: EBIT negativo → sem poupança fiscal
         # (empresa não recebe cheque do Estado por prejuízo incremental do hub)
         nopat = ebit_y * (1 - irc_taxa) if ebit_y > 0 else ebit_y
@@ -532,8 +549,8 @@ def hub_fcf(
         # Decomposição: IRC_pago = EBIT×t − rfai_y → NOPAT_ef. = EBIT(1−t) + rfai_y
         rfai_y = rfai_map.get(y, 0.0)
 
-        # FCF = NOPAT + rfai_credito + D&A − CAPEX − ΔNFM + libertação inventário
-        fcf = nopat + rfai_y + dep_y - capex_y - delta_nfm_y + inventario_y
+        # FCF = NOPAT + rfai_credito + D&A − CAPEX − ΔNFM + libertação inventário − terreno
+        fcf = nopat + rfai_y + dep_y - capex_y - delta_nfm_y + inventario_y - terreno_y
 
         rows.append(
             {
@@ -544,8 +561,9 @@ def hub_fcf(
                 "rfai_credito": rfai_y,
                 "depreciacao": dep_y,
                 "capex": -capex_y,
-                "delta_nfm": -delta_nfm_y,     # negativo = saída de caixa
+                "delta_nfm": -delta_nfm_y,          # negativo = saída de caixa
                 "inventario_libertado": inventario_y,
+                "terreno_oportunidade": -terreno_y,  # negativo = saída de caixa
                 "fcf_livre": fcf,
             }
         )

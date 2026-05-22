@@ -749,6 +749,42 @@ const API = (() => {
     return result;
   }
 
+  // ─── rollingForecast ──────────────────────────────────────────────────────
+  // Valores mensais 2025 do backend — garantia de que sum(mensais) == anual.
+  async function rollingForecast({ cenario = "Base" } = {}) {
+    if (useMock) {
+      return GRESTEL.rollingForecast(cenario);
+    }
+    const params = new URLSearchParams({ scenario: cenario });
+    const r = await fetch(BACKEND_URL + "/api/rolling-forecast/mensal?" + params);
+    if (!r.ok) throw new Error("Erro /rolling-forecast/mensal: " + r.status);
+    const d = await r.json();
+
+    const MESES_ORDER = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    const drByMes = Object.fromEntries((d.dr_mensal || []).map(row => [row.mes, row]));
+    const tesoByMes = Object.fromEntries((d.tesouraria || []).map(row => [row.mes, row]));
+
+    return MESES_ORDER.map(mes => {
+      const dr = drByMes[mes] || {};
+      const t  = tesoByMes[mes] || {};
+      const rec      = Number(t.recebimentos_clientes     || 0);
+      const fluxo_op = Number(t.fluxo_operacional_liquido || 0);
+      return {
+        mes,
+        vn:           Number(dr.vn             || 0),
+        cmvmc:        Number(dr.cmvmc           || 0),
+        fse:          Number(dr.fse             || 0),
+        pessoal:      Number(dr.gastos_pessoal  || 0),
+        ebitda:       Number(dr.ebitda          || 0),
+        recebimentos: rec,
+        pagamentos:   fluxo_op - rec,
+        investimento: Number(t.capex_pagamento  || 0),
+        financiamento: Number(t.fluxo_financiamento || 0),
+        caixa_fim:    Number(t.caixa_fecho      || 0),
+      };
+    });
+  }
+
   // ─── exportExcel ───────────────────────────────────────────────────────────
   async function exportExcel({ cenario, hub_on, ecogres_on }) {
     const params = new URLSearchParams({
@@ -769,5 +805,5 @@ const API = (() => {
     URL.revokeObjectURL(url);
   }
 
-  return { useMock, health, projecao, vendasAnalise, producaoAnalise, smartTracker, hubViability, hubTornado, hubBreakEven, hubComparativo, hubConsolidado, hubMonteCarlo, hubDebtService, hubInvestmentMap, listYamlFiles, getYamlContent, putYamlContent, restoreYamlContent, sensibilidade, cenariosAll, cenariosHubDelta, hubViabilidadeCenarios, exportExcel };
+  return { useMock, health, projecao, vendasAnalise, producaoAnalise, smartTracker, hubViability, hubTornado, hubBreakEven, hubComparativo, hubConsolidado, hubMonteCarlo, hubDebtService, hubInvestmentMap, listYamlFiles, getYamlContent, putYamlContent, restoreYamlContent, sensibilidade, cenariosAll, cenariosHubDelta, hubViabilidadeCenarios, exportExcel, rollingForecast };
 })();

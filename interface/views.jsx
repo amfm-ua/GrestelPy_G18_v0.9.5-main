@@ -411,8 +411,23 @@ function FSEView({ ctx }) {
 
 // ---- Rolling Forecast 2025 -------------------------------------------------
 function RollingView({ ctx }) {
-  const rf = useMemo(() => GRESTEL.rollingForecast(ctx.scenario, { hubOn: ctx.hubOn, ecogresOn: ctx.ecogresOn }),
-                     [ctx.scenario, ctx.hubOn, ctx.ecogresOn]);
+  const [rf, setRf] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    API.rollingForecast({ cenario: ctx.scenario })
+      .then(data => { if (!cancelled) { setRf(data); setLoading(false); } })
+      .catch(e  => { if (!cancelled) { setError(e.message); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [ctx.scenario]);
+
+  if (loading) return <p className="muted">A carregar rolling forecast…</p>;
+  if (error)   return <p className="error">{error}</p>;
+  if (!rf || !rf.length) return <p className="muted">Sem dados.</p>;
 
   const cashSeries = [{ labels: rf.map(r => r.mes), values: rf.map(r => r.caixa_fim), color: "var(--accent)", fill: true }];
   const vendasGroups = rf.map(r => ({

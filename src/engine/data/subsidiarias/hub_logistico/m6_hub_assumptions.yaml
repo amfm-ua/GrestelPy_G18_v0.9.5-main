@@ -12,7 +12,7 @@
 # └─────────────────────────────────────────────────────────────────────┘
 #
 # CAPEX por componente (fases 1+2 integradas):
-#   Terreno / preparação (Lote 29 ZI Vagos já detido pela Grestel)   100 k€ –  200 k€
+#   Terreno — custo de oportunidade (Lote 29 ZI Vagos, já detido)     150 k€  ← UC API: custo de oportunidade, não custo histórico
 #   Construção civil (reabilitação G1 + cais de carga + infraest.)  2 100 k€ – 2 700 k€
 #   Honorários e licenças                                               85 k€ –  165 k€
 #   6 módulos VLM (14 m) — scale-up de 4 para 6                     1 800 k€ – 2 250 k€
@@ -92,6 +92,22 @@ projeto_hub:
         taxa_depreciacao: 0.05    # vida útil 20 anos (DGEG: 20-25 a)
         vida_util_anos: 20
     # Verificação: 2 700 + 300 + 1 305 + 625 + 450 + 350 + 270 = 6 000 k€
+
+    # -----------------------------------------------------------------------
+    # CUSTO DE OPORTUNIDADE DO TERRENO (UC API, Doc 3) — fora dos pools acima
+    # -----------------------------------------------------------------------
+    # O Lote 29 ZI Vagos é propriedade da Grestel; não há desembolso real →
+    # não integra capex.base (6 000 k€) nem os pools depreciáveis.
+    # Ótica de projeto: imputar como saída em CFinv_t0 e recuperar no
+    # valor_residual (terreno não é depreciado).
+    #
+    # Estimativa de mercado: lotes ZI Vagos ~40–60 €/m² (CBRE Portugal 2024);
+    # Lote 29 ≈ 3 000 m² → 120–180 k€. Adoptado 150 k€ (conservador; lote
+    # hipotecado — NCRF 11 §16 — e sem proposta de alienação activa).
+    terreno_custo_oportunidade:
+      valor: 150000
+      depreciavel: false
+      inclui_em_cfinv: true    # adicionar a CFinv_t0 como saída; recuperar em valor_residual
 
   ano_inicio_beneficios: 2026
 
@@ -276,6 +292,38 @@ projeto_hub:
     capex_elegivel: 6000000
     limite_irc_pct: 0.50
     carry_forward_anos: 10
+
+  # ---------------------------------------------------------------------------
+  # VALOR RESIDUAL — UC API, Doc 3, Parâmetro 3
+  # ---------------------------------------------------------------------------
+  # Ano de referência: 2035 (ano_inicio_beneficios 2026 + horizonte_anos 10 − 1).
+  # Método: VLC = custo aquisição − depreciações acumuladas até ao ano N.
+  #
+  # Nota: a política contabilística Grestel adopta VR = 0 (R&C 2024, uso
+  # integral da vida económica). Para avaliação do projecto usa-se o VLC
+  # efectivo — conservador, mas mais realista que zero.
+  # Se VR de mercado > VLC → mais-valia tributada a IRC 24,5 %.
+  # Análise base: VR = VLC → mais-valia = 0 → sem tributação adicional.
+  #
+  # Pools com VLC > 0 em 2035:
+  #   construcao_civil : 2 700 k€ − 10 × 108 k€  = 1 620 k€  [4 %,  25 a, desde 2025]
+  #   energia_solar    :   270 k€ − 10 ×  13,5 k€ =  135 k€  [5 %,  20 a, desde 2026]
+  #   terreno          :   150 k€  (custo de oportunidade; não depreciado)
+  #
+  # Totalmente amortizados antes de 2035 → VLC = 0:
+  #   integracao_formacao (33 %, 3 a), vlm (12,5 %, 8 a), robotica_amr (20 %, 5 a),
+  #   wms_software (25 %, 4 a), box_on_demand (20 %, 5 a)
+  valor_residual:
+    ano_referencia: 2035
+    anc:
+      construcao_civil:        1620000    # VLC: 2 700 000 − 10 × 108 000
+      energia_solar:            135000    # VLC:   270 000 − 10 ×  13 500
+      terreno:                  150000    # custo de oportunidade (não depreciado)
+    total_anc_vlc:             1905000    # 1 620 + 135 + 150 k€
+    mais_valia_estimada:              0   # análise base: VR = VLC, sem mais-valia
+    vr_anc_liquido_impostos:   1905000    # = total_anc_vlc − mais_valia × irc_taxa
+    fundo_maneio:
+      calcular_engine: true              # engine apura NFM_2035 e inclui como +CF em 2035
 
   viabilidade:
     # Fluxos nominais (preços correntes) — WACC nominal 8,2 % derivado dos componentes CAPM.

@@ -1,5 +1,7 @@
 """Rotas do rolling forecast."""
 
+import math
+
 from fastapi import APIRouter, Query
 
 from src.engine.inputs import load
@@ -9,7 +11,14 @@ router = APIRouter(prefix="/api")
 
 
 def _df_to_records(df):
-    return df.to_dict(orient="records") if hasattr(df, "to_dict") else []
+    if not hasattr(df, "to_dict"):
+        return []
+    records = df.to_dict(orient="records")
+    return [
+        {k: (None if isinstance(v, float) and not math.isfinite(v) else v)
+         for k, v in row.items()}
+        for row in records
+    ]
 
 
 @router.get("/rolling-forecast/mensal")
