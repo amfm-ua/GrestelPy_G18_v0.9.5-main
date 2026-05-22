@@ -751,6 +751,24 @@ const API = (() => {
 
   // ─── rollingForecast ──────────────────────────────────────────────────────
   // Valores mensais 2025 do backend — garantia de que sum(mensais) == anual.
+
+  // Rubricas de FSE (dr_col → label UI) — espelha fse_rubricas.yaml
+  const FSE_RUBRICAS = [
+    { col: "fse_subcontratos",       label: "Subcontratos" },
+    { col: "fse_eletricidade",       label: "Eletricidade" },
+    { col: "fse_gas_natural",        label: "Gás Natural" },
+    { col: "fse_agua",               label: "Água" },
+    { col: "fse_manutencao",         label: "Manutenção e Reparação" },
+    { col: "fse_transportes_fretes", label: "Transportes e Fretes" },
+    { col: "fse_seguros",            label: "Seguros" },
+    { col: "fse_comunicacoes",       label: "Comunicações" },
+    { col: "fse_honorarios",         label: "Honorários" },
+    { col: "fse_rendas_alugueres",   label: "Rendas e Alugueres" },
+    { col: "fse_limpeza",            label: "Limpeza" },
+    { col: "fse_vigilancia",         label: "Segurança e Vigilância" },
+    { col: "fse_outros_fse",         label: "Outros FSE" },
+  ];
+
   async function rollingForecast({ cenario = "Base" } = {}) {
     if (useMock) {
       return GRESTEL.rollingForecast(cenario);
@@ -774,6 +792,7 @@ const API = (() => {
         vn:           Number(dr.vn             || 0),
         cmvmc:        Number(dr.cmvmc           || 0),
         fse:          Number(dr.fse             || 0),
+        fse_detalhe:  Object.fromEntries(FSE_RUBRICAS.map(rb => [rb.col, Number(dr[rb.col] || 0)])),
         pessoal:      Number(dr.gastos_pessoal  || 0),
         ebitda:       Number(dr.ebitda          || 0),
         recebimentos: rec,
@@ -805,5 +824,5 @@ const API = (() => {
     URL.revokeObjectURL(url);
   }
 
-  return { useMock, health, projecao, vendasAnalise, producaoAnalise, smartTracker, hubViability, hubTornado, hubBreakEven, hubComparativo, hubConsolidado, hubMonteCarlo, hubDebtService, hubInvestmentMap, listYamlFiles, getYamlContent, putYamlContent, restoreYamlContent, sensibilidade, cenariosAll, cenariosHubDelta, hubViabilidadeCenarios, exportExcel, rollingForecast };
+  return { useMock, health, projecao, vendasAnalise, producaoAnalise, smartTracker, hubViability, hubTornado, hubBreakEven, hubComparativo, hubConsolidado, hubMonteCarlo, hubDebtService, hubInvestmentMap, listYamlFiles, getYamlContent, putYamlContent, restoreYamlContent, sensibilidade, cenariosAll, cenariosHubDelta, hubViabilidadeCenarios, exportExcel, rollingForecast, FSE_RUBRICAS };
 })();

@@ -414,6 +414,7 @@ function RollingView({ ctx }) {
   const [rf, setRf] = React.useState(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState(null);
+  const [fseOpen, setFseOpen] = React.useState(false);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -464,7 +465,24 @@ function RollingView({ ctx }) {
           <tbody>
             <FRow label="Vendas" values={rf.map(r => r.vn)} />
             <FRow label="CMVMC" values={rf.map(r => -r.cmvmc)} />
-            <FRow label="FSE" values={rf.map(r => -r.fse)} />
+            <tr className="">
+              <td>
+                <button
+                  onClick={() => setFseOpen(o => !o)}
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: 0, font: "inherit", display: "flex", alignItems: "center", gap: 4 }}
+                >
+                  <span style={{ fontSize: "0.65em", display: "inline-block", transform: fseOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>▶</span>
+                  FSE
+                </button>
+              </td>
+              {rf.map((r, i) => <td key={i} className="mono num">{fmt.eur(-r.fse)}</td>)}
+            </tr>
+            {fseOpen && (API.FSE_RUBRICAS || []).map(rb => (
+              <tr key={rb.col} className="is-indent">
+                <td style={{ paddingLeft: "1.6rem", color: "var(--muted)", fontSize: "0.85em" }}>{rb.label}</td>
+                {rf.map((r, i) => <td key={i} className="mono num" style={{ color: "var(--muted)", fontSize: "0.85em" }}>{fmt.eur(-(r.fse_detalhe?.[rb.col] || 0))}</td>)}
+              </tr>
+            ))}
             <FRow label="Pessoal" values={rf.map(r => -r.pessoal)} />
             <tr className="is-subtotal"><td>EBITDA</td>{rf.map((r, i) => <td key={i} className="mono num">{fmt.eur(r.ebitda)}</td>)}</tr>
             <tr className="row-sep"><td colSpan={13}></td></tr>

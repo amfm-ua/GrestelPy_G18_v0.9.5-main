@@ -26,25 +26,9 @@ def fse_detalhe_mensal_2025(
     Returns:
         Dict {rubrica: {mes: valor}} com custos positivos.
     """
-    from ..inputs import Assumptions
-
-    g_fse_2025 = _cresc_fse_2025_efetivo(a)
-
-    pct_prod   = a.fse_params.get("pct_producao", 0.4)
-    pct_n      = a.fse_params.get("pct_nao_producao", 0.6)
-    meses_2025 = int(a.fse_params.get("meses_2025", 9))
-
-    factor_2025 = (1 + g_fse_2025) * (
-        pct_prod * vendas_factor_2025
-        + pct_n * (meses_2025 / 12.0)
-    )
-
-    base_vals = getattr(base, "fse_detalhe", {}) or {}
-
     if dist_sazonal is None:
         dist_sazonal = {m: 1.0 / 12.0 for m in MESES}
 
-    # Get annual detail for 2025 (already reconciled) and use for monthly distribution
     df_det_anual = fse_detalhe_anual(a, base, vendas_factor_2025)
     df_2025 = df_det_anual[df_det_anual.ano == 2025]
     annual_2025_by_rub = dict(zip(df_2025["rubrica"], df_2025["valor"]))
@@ -55,10 +39,7 @@ def fse_detalhe_mensal_2025(
         if rubica == "fse_total":
             continue
 
-        # Use already-reconciled annual values for 2025
         val_2025 = annual_2025_by_rub.get(rubica, 0.0)
-
-        # Distribute monthly by sazonalidade
         result[rubica] = {m: val_2025 * dist_sazonal[m] for m in MESES}
 
     return result
@@ -67,12 +48,27 @@ def fse_detalhe_mensal_2025(
 _CONTRATO_FSE_YAML = (DATA_DIR / "master" / "fse_rubricas.yaml").resolve()
 
 
-def _load_fse_contrato() -> tuple[dict[str, str], dict[str, str]]:
+def _load_fse_contrato() -> tuple[dict[str, str], dict[str, str], dict[str, float]]:
     """Carrega o contrato de rubricas de FSE (YAML) com fallback compatível.
 
     Returns:
-        (yaml_key_to_dr_col, yaml_key_to_label)
+        (yaml_key_to_dr_col, yaml_key_to_label, yaml_key_to_pct_variavel)
     """
+    _FALLBACK_PCV: dict[str, float] = {
+        "Subcontratos":       1.0,
+        "Eletricidade":       0.8,
+        "Gas_Natural":        0.8,
+        "Agua":               0.8,
+        "Manutencao":         0.0,
+        "Transportes_Fretes": 1.0,
+        "Seguros":            0.0,
+        "Comunicacoes":       0.0,
+        "Honorarios":         0.0,
+        "Rendas":             0.0,
+        "Limpeza":            0.0,
+        "Vigilancia":         0.0,
+        "Outros_FSE":         0.4,
+    }
     try:
         if not _CONTRATO_FSE_YAML.exists():
             raise FileNotFoundError
@@ -83,6 +79,7 @@ def _load_fse_contrato() -> tuple[dict[str, str], dict[str, str]]:
         rubricas = raw.get("rubricas") or []
         map_y2col: dict[str, str] = {}
         labels: dict[str, str] = {}
+        pcv: dict[str, float] = {}
 
         for r in rubricas:
             yaml_key = r.get("yaml_key")
@@ -93,11 +90,16 @@ def _load_fse_contrato() -> tuple[dict[str, str], dict[str, str]]:
             map_y2col[str(yaml_key)] = str(dr_col)
             if label:
                 labels[str(yaml_key)] = str(label)
+            pct_v = r.get("pct_variavel")
+            if pct_v is not None:
+                pcv[str(yaml_key)] = float(pct_v)
+            else:
+                pcv[str(yaml_key)] = _FALLBACK_PCV.get(str(yaml_key), 0.4)
 
         if not map_y2col:
             raise ValueError("Contrato FSE sem rubricas válidas")
 
-        return map_y2col, labels
+        return map_y2col, labels, pcv
     except Exception:
         # Fallback compatibility - keeps old columns without special chars.
         return (
@@ -131,10 +133,11 @@ def _load_fse_contrato() -> tuple[dict[str, str], dict[str, str]]:
                 "Vigilancia": "Seguranca e Vigilancia",
                 "Outros_FSE": "Outros FSE",
             },
+            _FALLBACK_PCV,
         )
 
 
-FSE_DETALHE_KEYS, FSE_DETALHE_LABELS = _load_fse_contrato()
+FSE_DETALHE_KEYS, FSE_DETALHE_LABELS, FSE_PCV = _load_fse_contrato()
 
 
 def fse_rubricas_ordered() -> list[tuple[str, str, str]]:
@@ -229,60 +232,32 @@ def fse_anual(
     base: Base2024,
     vendas_factor_2025: float,
 ) -> pd.DataFrame:
-    """FSE anual 2024-2029.
+    """FSE anual 2024-2029 — total bottom-up a partir do detalhe por rubrica.
+
+    O total de cada ano é a soma das rubricas em fse_detalhe_anual(), onde cada
+    rubrica usa o seu próprio pct_variavel. 2024 usa o valor real da DR para
+    preservar a consistência histórica.
 
     Args:
         a: Pressupostos do cenário.
         base: Dados base de 2024.
-        vendas_factor_2025: Fator de crescimento das vendas em 2025.
-            Mantido por compatibilidade com chamadas existentes.
+        vendas_factor_2025: Rácio VN_2025 / VN_2024.
 
     Returns:
-        DataFrame com colunas:
-        ano, fse.
+        DataFrame com colunas: ano, fse.
     """
     fse_2024_dr = _get_fse_2024_dr(base)
 
-    fse_2024_n27 = float(sum(
-        v for k, v in base.fse_detalhe.items()
-        if k != "fse_total"
-    ))
+    df_det = fse_detalhe_anual(a, base, vendas_factor_2025)
+    totais = df_det.groupby("ano")["valor"].sum()
 
-    g_fse_2025 = _cresc_fse_2025_efetivo(a)
+    rows = []
+    for y in ALL_YEARS:
+        # 2024: valor real da DR (histórico); restantes: soma bottom-up das rubricas
+        fse_val = fse_2024_dr if y == 2024 else float(totais.get(y, 0.0))
+        rows.append({"ano": y, "fse": fse_val})
 
-    # FSE 2025 — exercício parcial (9 meses):
-    #   • Custos variáveis (pct_producao) escalam com o rácio de VN (já inclui 9/12)
-    #   • Custos fixos (pct_nao_producao): rendas, seguros, comunicações, vigilância
-    #     devem escalar por meses_2025/12 (período real), NÃO pelo rácio de VN.
-    #     Em cenários com crescimento, o factor VN > 9/12 → sobrestima os fixos.
-    pct_prod = a.fse_params.get("pct_producao", 0.4)
-    pct_n    = a.fse_params.get("pct_nao_producao", 0.6)
-    meses_2025 = int(a.fse_params.get("meses_2025", 9))
-    fator_tempo_fixo = meses_2025 / 12.0
-
-    fse_2025 = fse_2024_n27 * (1 + g_fse_2025) * (
-        pct_prod * vendas_factor_2025 + pct_n * fator_tempo_fixo
-    )
-
-    g_fse_yr = a.cresc_2026_2029("fse")
-
-    fse = {
-        2024: fse_2024_dr,
-        2025: fse_2025,
-    }
-
-    for y in YEARS[1:]:
-        fse[y] = fse[y - 1] * (1 + g_fse_yr[y])
-
-    return pd.DataFrame(
-        [
-            {
-                "ano": y,
-                "fse": fse[y],
-            }
-            for y in ALL_YEARS
-        ]
-    )
+    return pd.DataFrame(rows)
 
 
 def fse_detalhe_anual(
@@ -290,55 +265,62 @@ def fse_detalhe_anual(
     base: Base2024,
     vendas_factor_2025: float,
 ) -> pd.DataFrame:
-    """Detalhe anual de FSE por rubrica.
+    """Detalhe anual de FSE por rubrica com fator fixo/variável por rubrica.
+
+    Cada rubrica usa o seu próprio `pct_variavel` (lido de fse_rubricas.yaml):
+      - componente variável escala com `vendas_factor_2025`
+      - componente fixa escala com `meses_2025 / 12`
+
+    O total de FSE 2025+ resulta da soma bottom-up das rubricas (não é imposto
+    de cima para baixo), pelo que não existe passo de reconciliação.
 
     Args:
         a: Pressupostos do cenário.
         base: Dados base de 2024.
-        vendas_factor_2025: Fator de crescimento das vendas em 2025.
+        vendas_factor_2025: Rácio VN_2025 / VN_2024.
 
     Returns:
-        DataFrame com colunas:
-        ano, rubrica, valor.
+        DataFrame com colunas: ano, rubrica, valor.
     """
     g_fse_2025 = _cresc_fse_2025_efetivo(a)
-
-    pct_prod   = a.fse_params.get("pct_producao", 0.4)
-    pct_n      = a.fse_params.get("pct_nao_producao", 0.6)
     meses_2025 = int(a.fse_params.get("meses_2025", 9))
+    fator_tempo_fixo = meses_2025 / 12.0
 
-    # FSE 2025: fixos × (9/12), variáveis × factor_vn — mesma lógica de fse_anual()
-    factor_2025 = (1 + g_fse_2025) * (
-        pct_prod * vendas_factor_2025
-        + pct_n * (meses_2025 / 12.0)
-    )
+    # Fallback global para rubricas sem pct_variavel no YAML
+    pct_prod_global = float(a.fse_params.get("pct_producao", 0.4))
 
     g_yr = a.cresc_2026_2029("fse")
 
     rows = []
-
-    # Garantir que o detalhe inclui TODAS as rubricas do contrato,
-    # mesmo quando o YAML base2024 não contém o valor (assume 0).
     base_vals = getattr(base, "fse_detalhe", {}) or {}
 
-    # Normalizar chaves: mapear versões com e sem acento
-    _NORMALIZE = {
-        "Água": "Água",
-        "Manutenção": "Manutenção",
-        "Comunicações": "Comunicações",
-        "Honorários": "Honorários",
-        "Rendas": "Rendas",
-        "Limpeza": "Limpeza",
-        "Vigilância": "Vigilância",
-    }
+    # Reconciliar os valores brutos de 2024 ao total real da DR.
+    # Os valores do YAML base são estimativas que podem não somar ao DR auditado;
+    # o scale garante que o detalhe fecha com o histórico e que 2025 projeta
+    # a partir da base correcta.
+    fse_2024_dr = _get_fse_2024_dr(base)
+    sum_raw_2024 = sum(
+        float(base_vals.get(rub, 0.0) or 0.0)
+        for rub in FSE_DETALHE_KEYS.keys()
+        if rub != "fse_total"
+    )
+    scale_2024 = fse_2024_dr / sum_raw_2024 if sum_raw_2024 > 0 else 1.0
 
     for rubica in FSE_DETALHE_KEYS.keys():
         if rubica == "fse_total":
             continue
 
-        # Try direct key match first
-        val_2024 = float(base_vals.get(rubica, 0.0) or 0.0)
-        
+        val_2024 = float(base_vals.get(rubica, 0.0) or 0.0) * scale_2024
+
+        # Per-rubric fixed/variable split — com fallback para pct_producao global
+        pct_var = FSE_PCV.get(rubica, pct_prod_global)
+        pct_fix = 1.0 - pct_var
+
+        factor_2025 = (1 + g_fse_2025) * (
+            pct_var * vendas_factor_2025
+            + pct_fix * fator_tempo_fixo
+        )
+
         v = {
             2024: val_2024,
             2025: val_2024 * factor_2025,
@@ -350,21 +332,4 @@ def fse_detalhe_anual(
         for y in ALL_YEARS:
             rows.append({"ano": y, "rubrica": rubica, "valor": v[y]})
 
-    df = pd.DataFrame(rows)
-
-    # Reconciliação: garantir que a soma das rubricas fecha com o total do FSE anual.
-    # Obter o total FSE por ano de fse_anual()
-    from .fse import fse_anual as _fse_anual_func
-
-    fse_totals = _fse_anual_func(a, base, vendas_factor_2025)
-    fse_total_by_year = dict(zip(fse_totals["ano"], fse_totals["fse"]))
-
-    # Ajuste: se a soma das rubricas não fecha, ajustar proporcionalmente
-    for y in ALL_YEARS:
-        target = fse_total_by_year.get(y, 0.0)
-        actual = df[df.ano == y]["valor"].sum()
-        if actual and target and abs(actual - target) > 1.0:
-            scale = target / actual
-            df.loc[df.ano == y, "valor"] = df[df.ano == y]["valor"] * scale
-
-    return df
+    return pd.DataFrame(rows)
