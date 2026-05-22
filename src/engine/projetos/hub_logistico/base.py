@@ -103,6 +103,39 @@ def _iter_emprestimos(proj: dict):
             yield nome, v
 
 
+def _juros_capitalizados_map_por_tranche(hub: dict) -> dict[str, dict[int, float]]:
+    """Juros capitalizados por tranche e por ano — NCRF 10.
+
+    Versão desagregada de _juros_capitalizados_map: devolve um dicionário
+    {nome_tranche: {ano: montante_capitalizado}} para permitir construir o
+    mapa de serviço da dívida individualmente por fonte de capital alheio.
+    """
+    proj = hub["projeto_hub"]
+    jc_cfg = proj.get("juros_capitalizaveis", {})
+
+    if not jc_cfg.get("capitalizar", False):
+        return {nome: {y: 0.0 for y in YEARS} for nome, _ in _iter_emprestimos(proj)}
+
+    ano_ini = int(jc_cfg.get("ano_inicio_capitalizacao", 9999))
+    ano_fim = int(jc_cfg.get("ano_fim_capitalizacao", 0))
+
+    result: dict[str, dict[int, float]] = {}
+    for nome, tranche in _iter_emprestimos(proj):
+        capital = float(tranche["montante"])
+        taxa = float(tranche["taxa_juro"])
+        desembolso_ano = int(tranche["desembolso"])
+        result[nome] = {y: 0.0 for y in YEARS}
+        saldo = 0.0
+        for y in YEARS:
+            if y == desembolso_ano:
+                saldo = capital
+            juros_y = saldo * taxa if saldo > 0 else 0.0
+            if ano_ini <= y <= ano_fim:
+                result[nome][y] = juros_y
+
+    return result
+
+
 def _kd_ponderado(proj: dict) -> float:
     """Custo médio ponderado da dívida (kd) sobre todas as tranches de empréstimo."""
     total_montante = 0.0

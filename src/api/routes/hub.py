@@ -10,6 +10,7 @@ from src.engine.projetos.hub_logistico import (
     viabilidade_hub,
     ponto_critico_hub,
     mapa_servico_divida,
+    mapa_servico_divida_por_tranche,
     hub_capex,
     hub_nfm,
 )
@@ -91,7 +92,15 @@ def get_hub_break_even(
 def get_hub_debt_service():
     hub = hub_load()
     df = mapa_servico_divida(hub)
-    return {"rows": df.to_dict(orient="records")}
+    pt = mapa_servico_divida_por_tranche(hub)
+    rows_por_tranche = {
+        nome: df_tr.to_dict(orient="records")
+        for nome, df_tr in pt.items()
+    }
+    return {
+        "rows": df.to_dict(orient="records"),
+        "rows_por_tranche": rows_por_tranche,
+    }
 
 
 @router.get("/hub/investment-map")

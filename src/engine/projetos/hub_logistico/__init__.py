@@ -43,7 +43,7 @@ from .impacto import (
     hub_dfc_impact,
     hub_fcf,
 )
-from .tesouraria import mapa_servico_divida, mapa_tesouraria_mensal
+from .tesouraria import mapa_servico_divida, mapa_servico_divida_por_tranche, mapa_tesouraria_mensal
 from .viabilidade import (
     _wacc_dinamico_por_ano,
     _npv_variable_wacc,
@@ -70,6 +70,7 @@ __all__ = [
     "hub_dfc_impact",
     "hub_fcf",
     "mapa_servico_divida",
+    "mapa_servico_divida_por_tranche",
     "mapa_tesouraria_mensal",
     "ponto_critico_hub",
     "viabilidade_hub",

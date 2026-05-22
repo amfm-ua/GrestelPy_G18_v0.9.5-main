@@ -9,7 +9,7 @@ from __future__ import annotations
 import pandas as pd
 
 from .base import load, _iter_emprestimos, _juros_capitalizados_map
-from .financiamento import hub_financing
+from .financiamento import hub_financing, hub_financing_por_tranche
 from .impacto import hub_dr_impact
 
 
@@ -88,6 +88,49 @@ def mapa_servico_divida(hub: dict | None = None) -> pd.DataFrame:
         )
 
     return pd.DataFrame(rows)
+
+
+def mapa_servico_divida_por_tranche(hub: dict | None = None) -> dict[str, pd.DataFrame]:
+    """Mapa de serviço da dívida individual por fonte de capital alheio.
+
+    Calcula o mesmo conjunto de métricas de mapa_servico_divida mas separado
+    por tranche, sem DSCR (que é um rácio consolidado EBITDA/serviço total).
+
+    Colunas por tranche:
+      ano, saldo_em_divida, saldo_fim, juros_pagos_total,
+      juros_capitalizados, juros_expensed_dr, amortizacao_capital,
+      servico_total_divida, periodo_carencia
+    """
+    if hub is None:
+        hub = load()
+
+    per_tranche = hub_financing_por_tranche(hub)
+    result: dict[str, pd.DataFrame] = {}
+
+    for nome, df_tr in per_tranche.items():
+        rows = []
+        for _, row in df_tr.iterrows():
+            y = int(row["ano"])
+            juros_total = float(row["juros"])
+            amort = float(row["amortizacao"])
+            saldo = float(row["saldo_fim"])
+            jc = float(row["juros_capitalizados"])
+            juros_exp = juros_total - jc
+            servico = juros_total + amort
+            rows.append({
+                "ano": y,
+                "saldo_em_divida": saldo + amort,
+                "saldo_fim": saldo,
+                "juros_pagos_total": juros_total,
+                "juros_capitalizados": jc,
+                "juros_expensed_dr": juros_exp,
+                "amortizacao_capital": amort,
+                "servico_total_divida": servico,
+                "periodo_carencia": amort == 0.0,
+            })
+        result[nome] = pd.DataFrame(rows)
+
+    return result
 
 
 def mapa_tesouraria_mensal(hub: dict | None = None) -> pd.DataFrame:

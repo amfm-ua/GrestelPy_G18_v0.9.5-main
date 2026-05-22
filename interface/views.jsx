@@ -1487,7 +1487,7 @@ function HubOE4View({ ctx }) {
         </table>
 
         <div className="sub-section">
-          <div className="sub-label">Saldo em dívida e amortização anual</div>
+          <div className="sub-label">Saldo em dívida e amortização anual (consolidado)</div>
           <BarChart
             groups={ds.rows.map(r => ({
               label: String(r.ano),
@@ -1503,6 +1503,70 @@ function HubOE4View({ ctx }) {
             <div className="legend-row"><span className="swatch" style={{ background: "oklch(0.66 0.105 55)" }} /><span>Amortização anual</span></div>
           </div>
         </div>
+
+        {/* Detalhe por fonte de capital alheio */}
+        {ds.rows_por_tranche && Object.keys(ds.rows_por_tranche).length > 0 && (
+          <div className="sub-section" style={{ marginTop: 20 }}>
+            <div className="sub-label" style={{ marginBottom: 12 }}>Detalhe por fonte de capital alheio</div>
+            {Object.entries(ds.rows_por_tranche).map(([nome, trRows], ti) => {
+              const trColor = ti === 0 ? "oklch(0.34 0.075 40)" : "oklch(0.48 0.095 45)";
+              const trLabel = nome.replace(/_/g, " ");
+              const trSomaJuros = trRows.reduce((a, r) => a + r.juros_pagos_total, 0);
+              const trSomaAmort = trRows.reduce((a, r) => a + r.amortizacao_capital, 0);
+              const trSomaServico = trRows.reduce((a, r) => a + r.servico_total_divida, 0);
+              return (
+                <div key={nome} style={{ marginBottom: 24 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                    <span className="swatch" style={{ background: trColor }} />
+                    <span style={{ fontWeight: 600, fontSize: 13 }}>{trLabel}</span>
+                  </div>
+                  <table className="ftable ftable--dense">
+                    <thead>
+                      <tr>
+                        <th>Ano</th>
+                        <th className="mono num">Saldo início</th>
+                        <th className="mono num">Juros pagos</th>
+                        <th className="mono num">Capitalizados</th>
+                        <th className="mono num">Em DR</th>
+                        <th className="mono num">Amortização</th>
+                        <th className="mono num">Serviço total</th>
+                        <th>Período</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {trRows.map(r => (
+                        <tr key={r.ano}>
+                          <td className="mono"><b style={{ fontWeight: 500 }}>{r.ano}</b></td>
+                          <td className="mono num">{fmt.eur(r.saldo_em_divida)}</td>
+                          <td className="mono num">{r.juros_pagos_total > 0 ? fmt.eur(r.juros_pagos_total) : <span className="muted">—</span>}</td>
+                          <td className="mono num muted">{r.juros_capitalizados > 0 ? fmt.eur(r.juros_capitalizados) : "—"}</td>
+                          <td className="mono num">{r.juros_expensed_dr > 0 ? fmt.eur(r.juros_expensed_dr) : "—"}</td>
+                          <td className="mono num">{r.amortizacao_capital > 0 ? fmt.eur(r.amortizacao_capital) : "—"}</td>
+                          <td className="mono num" style={{ fontWeight: 500 }}>{r.servico_total_divida > 0 ? fmt.eur(r.servico_total_divida) : <span className="muted">—</span>}</td>
+                          <td>
+                            {r.periodo_carencia
+                              ? <span className="chip-static" style={{ background: "oklch(0.95 0.05 80)", borderColor: "transparent", color: "oklch(0.45 0.10 70)", padding: "2px 8px", fontSize: 10.5 }}>Carência</span>
+                              : <span className="chip-static" style={{ background: "var(--pos-soft)", borderColor: "transparent", color: "var(--pos)", padding: "2px 8px", fontSize: 10.5 }}>Amortização</span>
+                            }
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="is-total">
+                        <td>Acumulado</td><td></td>
+                        <td className="mono num">{fmt.eur(trSomaJuros)}</td>
+                        <td className="mono num">{fmt.eur(trRows.reduce((a, r) => a + r.juros_capitalizados, 0))}</td>
+                        <td className="mono num">{fmt.eur(trRows.reduce((a, r) => a + r.juros_expensed_dr, 0))}</td>
+                        <td className="mono num">{fmt.eur(trSomaAmort)}</td>
+                        <td className="mono num">{fmt.eur(trSomaServico)}</td>
+                        <td></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </Panel>
 
       <div className="grid-2">
