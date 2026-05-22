@@ -26,7 +26,7 @@ crescimento_volume_vendas:
   # Volume é grandeza física — não ligado à inflação, valor directo
   base_2025: 0.02
   acrescimos_mensais:
-    Mai: 0.5
+    Mai: 0.02
 
 crescimento_pvu_vendas:
   # Spread real de preço (pricing power): 0.8% real + 2.2% inflação ≈ 3.0% nominal
