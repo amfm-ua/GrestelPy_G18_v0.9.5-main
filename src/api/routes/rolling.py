@@ -22,8 +22,9 @@ def _df_to_records(df):
 
 
 @router.get("/rolling-forecast/mensal")
-def get_rolling_forecast(scenario: str = Query("Base")):
+def get_rolling_forecast(scenario: str = Query("Base"), hub_on: bool = Query(True)):
     a, base, sched = load(cenario=scenario)
+    a.raw.setdefault("hub_logistico", {})["incluir_hub"] = hub_on
     rf = build_rolling_forecast(a, base, sched)
 
     stmt_m6 = rf.get("stmt_m6", {})

@@ -31,8 +31,14 @@ def _build_integrated_monthly(
     Retorna:
         tuple[pd.DataFrame, pd.DataFrame]: df_balanco, df_dfc.
     """
-    caixa_min = a.caixa["minima"]
-    caixa_max = a.caixa["maxima"]
+    # Floor mensal = 0: o saldo real do mês é mostrado sem reserva mínima forçada.
+    # Quando negativo, a linha de crédito CP é acionada (plug). Permite identificar
+    # meses com pressão de liquidez — informação relevante no Mapa de Tesouraria (6.11).
+    # Ver globais.yaml § caixa para fundamento académico (Keynes/Baumol).
+    caixa_min = float(a.caixa.get("mensal_minima", 0))
+    # Teto mensal: % do VN anual projetado 2025 (consistente com o Balanço anual).
+    _vn_anual = float(df_dr_m["vn"].sum()) if "vn" in df_dr_m.columns else 40_000_000.0
+    caixa_max = _vn_anual * float(a.caixa.get("maxima_pct_vn", 0.086))
     iva_venda = iva_efetivo_vendas(a)
     iva_fse = a.impostos.get("IVA_FSE", 0.15)
 

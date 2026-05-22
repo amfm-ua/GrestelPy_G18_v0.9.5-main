@@ -53,7 +53,17 @@ def build_smart_tracker(
     rows = []
 
     for obj in _load_objetivos():
-        df_fonte = fontes[obj["fonte"]]
+        # Objetivos com fonte:pendente ainda não têm KPI calculado — omitir silenciosamente.
+        fonte_name = obj.get("fonte", "")
+        if fonte_name not in fontes:
+            continue
+
+        df_fonte = fontes[fonte_name]
+
+        # Campo KPI ainda não calculado pelo motor — omitir silenciosamente.
+        if obj["kpi_field"] not in df_fonte.columns:
+            continue
+
         alvo = float(obj["alvo"])
 
         operador = obj["operador"]

@@ -289,9 +289,6 @@ def build_balanco(
     hub_nfm_cum = _hub_nfm_cumulative(a)
     hub_pt2030_dif = _hub_pt2030_diferido(a)
 
-    caixa_min = a.caixa["minima"]
-    caixa_max = a.caixa["maxima"]
-
     # IDA dinâmico — NCRF 25 §24:
     #   Imposto Diferido Ativo (IDA): direito fiscal futuro que nasce quando a
     #   empresa reconhece um gasto contabilístico antes de o poder deduzir
@@ -393,6 +390,13 @@ def build_balanco(
         #     superior ao modelado. Para maior rigor, seria necessário retroalimentar
         #     os juros na DR e recalcular iterativamente.
         surplus = cp_total_pre_caixa + passivo_pre - total_anc - ac_sem_caixa
+
+        # Limites de caixa anuais expressos como % do VN (motivo transação — Keynes/Baumol):
+        # escalam com o crescimento, ao contrário de valores fixos.
+        # Para 2024 estes valores não são usados (caixa vem do balanço histórico).
+        vn_y = float(df_dr[df_dr.ano == y]["vn"].iloc[0])
+        caixa_min = vn_y * float(a.caixa.get("minima_pct_vn", 0.013))
+        caixa_max = vn_y * float(a.caixa.get("maxima_pct_vn", 0.086))
 
         if y == 2024:
             caixa = base.balanco["ativo_corrente"]["Caixa"]

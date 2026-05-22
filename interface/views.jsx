@@ -420,11 +420,11 @@ function RollingView({ ctx }) {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    API.rollingForecast({ cenario: ctx.scenario })
+    API.rollingForecast({ cenario: ctx.scenario, hub_on: ctx.hubOn })
       .then(data => { if (!cancelled) { setRf(data); setLoading(false); } })
       .catch(e  => { if (!cancelled) { setError(e.message); setLoading(false); } });
     return () => { cancelled = true; };
-  }, [ctx.scenario]);
+  }, [ctx.scenario, ctx.hubOn]);
 
   if (loading) return <p className="muted">A carregar rolling forecast…</p>;
   if (error)   return <p className="error">{error}</p>;
@@ -441,15 +441,15 @@ function RollingView({ ctx }) {
       <div className="grid-4">
         <KPI label="VN acumulado" value={fmt.eurC(rf.reduce((a, r) => a + r.vn, 0))} sub="12 meses · 2025" />
         <KPI label="EBITDA acumulado" value={fmt.eurC(rf.reduce((a, r) => a + r.ebitda, 0))} />
-        <KPI label="Caixa Dez 2025" value={fmt.eurC(rf[11].caixa_fim)} tone={rf[11].caixa_fim >= 500000 ? "pos" : "neg"} />
-        <KPI label="Caixa mín. ano" value={fmt.eurC(Math.min(...rf.map(r => r.caixa_fim)))} sub="limite mínimo 500 k€" tone={Math.min(...rf.map(r => r.caixa_fim)) >= 500000 ? "pos" : "neg"} />
+        <KPI label="Caixa Dez 2025" value={fmt.eurC(rf[11].caixa_fim)} tone={rf[11].caixa_fim >= 0 ? "pos" : "neg"} />
+        <KPI label="Caixa mín. ano" value={fmt.eurC(Math.min(...rf.map(r => r.caixa_fim)))} sub="floor 0 € · linha crédito como plug" tone={Math.min(...rf.map(r => r.caixa_fim)) >= 0 ? "pos" : "neg"} />
       </div>
 
       <div className="grid-2-3">
         <Panel title="Vendas mensais · 2025" sub="aplicação da sazonalidade dos mercados">
           <BarChart groups={vendasGroups} height={260} />
         </Panel>
-        <Panel title="Tesouraria · saldo de caixa fim de mês" sub="limite mínimo 500 k€ · limite máximo 1,5 M€">
+        <Panel title="Tesouraria · saldo de caixa fim de mês" sub="floor mensal 0 € (linha crédito CP como plug) · teto dinâmico 8,6% VN">
           <LineChart series={cashSeries} height={260} />
         </Panel>
       </div>
@@ -556,7 +556,7 @@ function HubViabilidadeView({ ctx }) {
     setLoading(true);
     setError(null);
     Promise.all([
-      API.hubViability(),
+      API.hubViability({ cenario: ctx.scenario }),
       API.hubTornado(),
       API.hubComparativo({ cenario: ctx.scenario }),
       API.hubConsolidado({ cenario: ctx.scenario }),
@@ -2095,8 +2095,9 @@ function PressupostosView({ ctx }) {
             <KV k="DMI — produto acabado" v="160 dias" />
             <KV k="DMI — matéria-prima" v="160 dias" />
             <KV k="DMI — mercadorias" v="60 dias" />
-            <KV k="Caixa mínima" v="500 k€" />
-            <KV k="Caixa máxima" v="1,5 M€" />
+            <KV k="Caixa mínima (% VN)" v="1,3% VN" />
+            <KV k="Caixa máxima (% VN)" v="8,6% VN" />
+            <KV k="Floor mensal tesouraria" v="0 €" />
             <KV k="Payout ratio" v="20%" />
             <KV k="Reserva legal" v="5%" />
             <KV k="Início distribuição" v="2026" />

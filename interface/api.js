@@ -388,12 +388,12 @@ const API = (() => {
   }
 
   // ─── hubViability ──────────────────────────────────────────────────────────
-  async function hubViability({ irc_taxa, wacc } = {}) {
+  async function hubViability({ cenario = "Base", irc_taxa, wacc } = {}) {
     if (useMock) {
       const v = GRESTEL.hubViability(irc_taxa || 0.245);
       return v;
     }
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ cenario });
     if (irc_taxa != null) params.set("irc_taxa", irc_taxa);
     if (wacc != null) params.set("wacc", wacc);
     const r = await fetch(BACKEND_URL + "/api/hub/viability?" + params);
@@ -406,6 +406,7 @@ const API = (() => {
     const anos = Array.from({ length: fcf.length }, (_, i) => 2024 + i);
     return {
       vpl: d.val,
+      cenario: d.cenario || cenario,
       tir: d.tir,
       payback_simples: d.payback_simples != null ? d.payback_simples.toFixed(1) + " anos" : "—",
       payback_atualizado: d.payback_atualizado != null ? d.payback_atualizado.toFixed(1) + " anos" : "—",
@@ -769,11 +770,11 @@ const API = (() => {
     { col: "fse_outros_fse",         label: "Outros FSE" },
   ];
 
-  async function rollingForecast({ cenario = "Base" } = {}) {
+  async function rollingForecast({ cenario = "Base", hub_on = true } = {}) {
     if (useMock) {
       return GRESTEL.rollingForecast(cenario);
     }
-    const params = new URLSearchParams({ scenario: cenario });
+    const params = new URLSearchParams({ scenario: cenario, hub_on: String(hub_on) });
     const r = await fetch(BACKEND_URL + "/api/rolling-forecast/mensal?" + params);
     if (!r.ok) throw new Error("Erro /rolling-forecast/mensal: " + r.status);
     const d = await r.json();
@@ -824,5 +825,25 @@ const API = (() => {
     URL.revokeObjectURL(url);
   }
 
-  return { useMock, health, projecao, vendasAnalise, producaoAnalise, smartTracker, hubViability, hubTornado, hubBreakEven, hubComparativo, hubConsolidado, hubMonteCarlo, hubDebtService, hubInvestmentMap, listYamlFiles, getYamlContent, putYamlContent, restoreYamlContent, sensibilidade, cenariosAll, cenariosHubDelta, hubViabilidadeCenarios, exportExcel, rollingForecast, FSE_RUBRICAS };
+  // ─── exportM3 ────────────────────────────────────────────────────────────
+  async function exportM3({ cenario, hub_on, ecogres_on }) {
+    const params = new URLSearchParams({
+      cenario,
+      hub_on: String(hub_on),
+      ecogres_on: String(ecogres_on),
+    });
+    const r = await fetch(BACKEND_URL + "/api/export/m3?" + params);
+    if (!r.ok) throw new Error("Erro ao exportar M3: " + r.status);
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `GrestelPy_M3_${cenario}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  return { useMock, health, projecao, vendasAnalise, producaoAnalise, smartTracker, hubViability, hubTornado, hubBreakEven, hubComparativo, hubConsolidado, hubMonteCarlo, hubDebtService, hubInvestmentMap, listYamlFiles, getYamlContent, putYamlContent, restoreYamlContent, sensibilidade, cenariosAll, cenariosHubDelta, hubViabilidadeCenarios, exportExcel, exportM3, rollingForecast, FSE_RUBRICAS };
 })();

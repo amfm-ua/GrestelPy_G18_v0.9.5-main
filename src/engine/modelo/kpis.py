@@ -304,6 +304,7 @@ def build_kpis(
                 "dmi_dias": dmi,
                 "ciclo_caixa": ciclo_caixa,
                 "cobertura_juros": cob_juros,
+                "juros_abs": juros_abs,
                 "dscr": dscr,
                 "dscr_com_outros_rend": dscr_total,
                 "amort_capital": amort_capital,

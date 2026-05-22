@@ -251,6 +251,124 @@ _SCENARIO_OVERRIDES: dict[str, dict] = {
     },
 }
 
+# Recalibracao M6 do Hub Logistico.
+#
+# Mantem os cenarios do projeto alinhados com o YAML base atual:
+#   Base: poupanca 440k, quebras 65k, OPEX 225k, inventario 1.9M.
+# A camada abaixo tambem evita que overrides historicos deixem o Downside
+# artificialmente melhor do que o Base.
+_HUB_SCENARIO_RECALIBRATION: dict[str, dict] = {
+    "Upside": {
+        "hub_logistico": {
+            "projeto_hub": {
+                "beneficios_anuais": {
+                    "poupanca_operacional": 484000,
+                    "reducao_quebras": 75000,
+                    "opex_incremental": 210000,
+                    "beneficio_liquido_anual": 349000,
+                    "crescimento_anual": 0.040,
+                },
+                "beneficios_pontuais": {
+                    "libertacao_inventario": 2200000,
+                    "libertacao_cronograma": {2026: 1100000, 2027: 1100000},
+                },
+                "beneficios_comerciais": {
+                    "vn_incremental": {
+                        2026: 450000,
+                        2027: 750000,
+                        2028: 1000000,
+                        2029: 1150000,
+                    },
+                    "cmvmc_pct_incremental": 0.52,
+                },
+                "necessidades_fundo_maneio": {
+                    "compras_manutencao_anuais": 84000,
+                },
+                "viabilidade": {"wacc": 0.078},
+            },
+        },
+    },
+    "Downside": {
+        "hub_logistico": {
+            "projeto_hub": {
+                "beneficios_anuais": {
+                    "poupanca_operacional": 374000,
+                    "reducao_quebras": 45500,
+                    "opex_incremental": 247500,
+                    "beneficio_liquido_anual": 172000,
+                    "crescimento_anual": 0.025,
+                    "ramp_up_por_ano": {
+                        2026: 0.75,
+                        2027: 0.90,
+                        2028: 1.00,
+                        2029: 1.00,
+                    },
+                },
+                "beneficios_pontuais": {
+                    "libertacao_inventario": 1300000,
+                    "libertacao_cronograma": {2026: 650000, 2027: 650000},
+                },
+                "beneficios_comerciais": {
+                    "vn_incremental": {
+                        2026: 250000,
+                        2027: 450000,
+                        2028: 600000,
+                        2029: 675000,
+                    },
+                    "cmvmc_pct_incremental": 0.60,
+                },
+                "necessidades_fundo_maneio": {
+                    "compras_manutencao_anuais": 99000,
+                },
+                "viabilidade": {"wacc": 0.090},
+            },
+        },
+    },
+    "Stress": {
+        "hub_logistico": {
+            "projeto_hub": {
+                "beneficios_anuais": {
+                    "poupanca_operacional": 308000,
+                    "reducao_quebras": 19500,
+                    "opex_incremental": 281250,
+                    "beneficio_liquido_anual": 46250,
+                    "crescimento_anual": 0.015,
+                    "ramp_up_por_ano": {
+                        2026: 0.60,
+                        2027: 0.80,
+                        2028: 1.00,
+                        2029: 1.00,
+                    },
+                },
+                "beneficios_pontuais": {
+                    "libertacao_inventario": 750000,
+                    "libertacao_cronograma": {2026: 400000, 2027: 350000},
+                },
+                "beneficios_comerciais": {
+                    "vn_incremental": {
+                        2026: 150000,
+                        2027: 250000,
+                        2028: 350000,
+                        2029: 400000,
+                    },
+                    "cmvmc_pct_incremental": 0.65,
+                },
+                "necessidades_fundo_maneio": {
+                    "compras_manutencao_anuais": 112500,
+                    "receita_servicos_externos_2028": 150000,
+                },
+                "viabilidade": {"wacc": 0.100},
+            },
+        },
+    },
+}
+
+for _scenario_name, _hub_override in _HUB_SCENARIO_RECALIBRATION.items():
+    _SCENARIO_OVERRIDES[_scenario_name] = _deep_update(
+        _SCENARIO_OVERRIDES.get(_scenario_name, {}),
+        _hub_override,
+    )
+
 CENARIOS = list(_SCENARIO_OVERRIDES.keys())
 
 

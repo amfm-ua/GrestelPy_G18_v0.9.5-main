@@ -240,7 +240,7 @@ function Sidebar({ view, setView, apiStatus }) {
       <div className="brand">
         <img className="brand-logo" src="assets/grestel-logo.png" alt="Grestel" />
         <div>
-          <div className="brand-sub">PEF G18 M6 · v0.7</div>
+          <div className="brand-sub">PEF G18 M6 · v0.9.5</div>
         </div>
       </div>
       <nav className="nav">
@@ -286,6 +286,7 @@ function fmtIsoDate(iso) {
 
 function Topbar({ view, scenario, setScenario, hubOn, setHubOn, hubLocked, loading, ecogresOn }) {
   const [exporting, setExporting] = useState(false);
+  const [exportingM3, setExportingM3] = useState(false);
   const title = NAV.find(n => n.id === view)?.label || "";
   const desc = GRESTEL.SCENARIOS[scenario].desc;
 
@@ -297,6 +298,17 @@ function Topbar({ view, scenario, setScenario, hubOn, setHubOn, hubLocked, loadi
       alert("Erro ao exportar: " + e.message);
     } finally {
       setExporting(false);
+    }
+  }
+
+  async function handleExportM3() {
+    setExportingM3(true);
+    try {
+      await API.exportM3({ cenario: scenario, hub_on: hubOn, ecogres_on: ecogresOn });
+    } catch (e) {
+      alert("Erro ao exportar M3: " + e.message);
+    } finally {
+      setExportingM3(false);
     }
   }
 
@@ -327,6 +339,9 @@ function Topbar({ view, scenario, setScenario, hubOn, setHubOn, hubLocked, loadi
         </div>
         <button className="btn-ghost" onClick={handleExport} disabled={exporting}>
           {exporting ? "A exportar…" : "Exportar Excel"}
+        </button>
+        <button className="btn-ghost" onClick={handleExportM3} disabled={exportingM3} title="Tabelas M3 alinhadas ao relatório académico">
+          {exportingM3 ? "A exportar…" : "Exportar M3"}
         </button>
       </div>
     </header>

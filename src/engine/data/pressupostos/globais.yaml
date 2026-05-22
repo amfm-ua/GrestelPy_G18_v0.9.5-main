@@ -49,8 +49,17 @@ impostos:
   Majoracao_Energia_pct: 0.2
 
 caixa:
-  minima: 500000
-  maxima: 3500000
+  # Limites expressos como % do VN anual projetado (teoria keynesiana do motivo transação:
+  # a procura de liquidez escala com o volume de transações — Keynes 1936, Baumol 1952).
+  # Calibrados para coincidir com os valores históricos em 2025 e escalar com o crescimento.
+  minima_pct_vn: 0.013   # 1.3% VN → ≈ 527 k€ em 2025, ≈ 691 k€ em 2029
+  maxima_pct_vn: 0.086   # 8.6% VN → ≈ 3.48 M€ em 2025, ≈ 4.57 M€ em 2029
+
+  # Floor para o Orçamento de Tesouraria Mensal (Mapa 6.11).
+  # Valor 0: o saldo mensal reflete os fluxos reais; quando negativo, a linha de crédito
+  # de curto prazo é acionada automaticamente (plug contabilístico). Permite identificar
+  # os meses com pressão de liquidez — informação com valor académico relevante.
+  mensal_minima: 0
 
 distribuicao_resultados:
   payout_ratio: 0.20

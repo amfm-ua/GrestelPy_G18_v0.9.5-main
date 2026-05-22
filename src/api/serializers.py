@@ -112,8 +112,9 @@ def _flatten_assumptions(a) -> dict[str, Any]:
     out["dmi_merc_dias"] = int(prazos.get("DMI_Mercadorias_dias", 60))
 
     caixa = raw.get("caixa", {}) or {}
-    out["caixa_minima"] = float(caixa.get("minima", 500000))
-    out["caixa_maxima"] = float(caixa.get("maxima", 1500000))
+    out["caixa_min_pct_vn"]    = float(caixa.get("minima_pct_vn", 0.013))
+    out["caixa_max_pct_vn"]    = float(caixa.get("maxima_pct_vn", 0.086))
+    out["caixa_mensal_minima"] = float(caixa.get("mensal_minima", 0))
 
     distrib = raw.get("distribuicao_resultados", {}) or {}
     out["payout_ratio"] = float(distrib.get("payout_ratio", 0.20)) * 100

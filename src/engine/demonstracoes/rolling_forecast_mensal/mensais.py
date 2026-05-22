@@ -4,7 +4,7 @@ import pandas as pd
 
 from ...inputs import Assumptions, Base2024, Schedules, MESES
 from ...financiamento import tesouraria as teso_mod
-from .auxiliares import _financiamento_mensal, _capex_mensal
+from .auxiliares import _financiamento_mensal, _capex_mensal, _hub_monthly_impact
 from .integrado import _build_integrated_monthly
 
 
@@ -122,6 +122,7 @@ def build_tesouraria_completa(
     df_teso = teso_mod.build_tesouraria(a, base, sched)
     fin_m = _financiamento_mensal(sched)
     cap_m = _capex_mensal(sched)
+    hub_impact = _hub_monthly_impact(a)
 
     t_map = df_teso.set_index("mes").to_dict("index")
     bs_map = df_bs.set_index("mes").to_dict("index")
@@ -143,11 +144,16 @@ def build_tesouraria_completa(
         fluxo_op_b = t["fluxo_operacional_bruto"]
         fluxo_op_l = t["fluxo_liquido"]
 
-        capex_pag = cap["capex_aft"] + cap["capex_int"]
+        hub_m            = hub_impact["meses"][m] if hub_impact else {}
+        hub_capex_m      = float(hub_m.get("capex",       0.0))
+        hub_juros_pag_m  = float(hub_m.get("juros_pagos", 0.0))
+        hub_desembolso_m = float(hub_m.get("desembolso",  0.0))
+
+        capex_pag = cap["capex_aft"] + cap["capex_int"] + hub_capex_m
         amort_pag = fin["amortizacao"]
         juros_pag = fin["juros"]
 
-        fluxo_fin = -(amort_pag + juros_pag)
+        fluxo_fin = -(amort_pag + juros_pag) + hub_desembolso_m - hub_juros_pag_m
 
         var_total = fluxo_op_l - capex_pag + fluxo_fin
         caixa_bruta = caixa_prev + var_total

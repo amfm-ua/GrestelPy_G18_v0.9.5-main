@@ -2,7 +2,7 @@
 
 import copy
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 
 from src.engine.projetos.hub_logistico import (
     load as hub_load,
@@ -26,12 +26,29 @@ router = APIRouter(prefix="/api")
 _SC_VIAB = ["Base", "Upside", "Downside", "Stress"]
 
 
+def _hub_with_scenario(cenario: str) -> dict:
+    """Carrega o Hub e aplica os overrides hub_logistico do cenario escolhido."""
+    if cenario not in _SC_VIAB:
+        raise HTTPException(status_code=400, detail=f"Cenario invalido: {cenario}")
+
+    hub = copy.deepcopy(hub_load())
+    hub_overrides = _SCENARIO_OVERRIDES.get(cenario, {}).get("hub_logistico", {})
+    if hub_overrides:
+        hub = _deep_update(hub, hub_overrides)
+    return hub
+
+
 @router.get("/hub/viability")
-def get_hub_viability(irc_taxa: float = Query(None), wacc: float = Query(None)):
-    hub = hub_load()
+def get_hub_viability(
+    cenario: str = Query("Base"),
+    irc_taxa: float = Query(None),
+    wacc: float = Query(None),
+):
+    hub = _hub_with_scenario(cenario)
     res = viabilidade_hub(hub, irc_taxa=irc_taxa, wacc=wacc)
 
     return {
+        "cenario": cenario,
         "val": res.get("val"),
         "tir": res.get("tir"),
         "payback_simples": res.get("payback_simples"),
@@ -322,7 +339,7 @@ def get_hub_consolidado(
     wacc: float = Query(None),
 ):
     """VAL, TIR, Payback consolidados — Hub Logístico + Ecogres + Grestel grupo."""
-    hub = hub_load()
+    hub = _hub_with_scenario(cenario)
     hub_res = viabilidade_hub(hub, irc_taxa=irc_taxa, wacc=wacc)
 
     # Ecogres — P&L projetado (com hub ativo para capturar transferência interna)
