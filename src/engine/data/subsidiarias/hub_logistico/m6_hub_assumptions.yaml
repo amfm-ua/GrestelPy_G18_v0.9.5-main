@@ -4,17 +4,19 @@
 #   + WMS integrado + Digital Twin + Solar 200 kWp — interligados via MES/WMS
 #
 # ┌─────────────────────────────────────────────────────────────────────┐
-# │  JUSTIFICAÇÃO DO CAPEX DE 6 000 k€                                  │
-# │  CAPEX / ATL_operacional = 6 000 k€ / 39 570 k€ = 15,2 % ≥ 15 %   │
+# │  JUSTIFICAÇÃO DO CAPEX ELEGÍVEL DE 5 955 k€                         │
+# │  CAPEX / ATL_operacional = 5 955 k€ / 39 570 k€ = 15,05 % ≥ 15 %  │
 # │  (ATL operacional exclui EOEP_devedor 688,5 k€ — NCRF 15 §9)        │
+# │  Exclui 45 k€ de honorários afundados (sunk cost pré-decisão)       │
 # │  O projeto integra as fases 1 e 2 numa única decisão de investimento │
 # │  para cumprir o limiar mínimo de relevância estratégica do M6.       │
 # └─────────────────────────────────────────────────────────────────────┘
 #
 # CAPEX por componente (fases 1+2 integradas):
 #   Terreno — custo de oportunidade (Lote 29 ZI Vagos, já detido)     150 k€  ← UC API: custo de oportunidade, não custo histórico
-#   Construção civil (reabilitação G1 + cais de carga + infraest.)  2 100 k€ – 2 700 k€
-#   Honorários e licenças                                               85 k€ –  165 k€
+#   Construção civil (reabilitação G1 + cais de carga + infraest.)  2 100 k€ – 2 535 k€
+#   Honorários futuros (arquitetura, eng. detalhe, licenças)           120 k€  ← CAPEX elegível, depreciável
+#   Honorários afundados (estudos pré-decisão — já incorridos)          45 k€  ← sunk cost, excluído análise incremental
 #   6 módulos VLM (14 m) — scale-up de 4 para 6                     1 800 k€ – 2 250 k€
 #   5 AMRs + suporte (fases 1+2 integradas)                            550 k€ –  750 k€
 #   Estações pick-and-pack + Box-on-Demand                             600 k€ –  850 k€
@@ -32,7 +34,8 @@ incluir_hub: true
 # │  (−) EOEP_devedor (crédito fiscal, não ativo operac.):    688 520 €            │
 # │  ATL operacional:                                      39 570 244 €  → 39 570 k│
 # │                                                                                 │
-# │  CAPEX / ATL_operacional = 6 000 k€ / 39 570 k€ = 15,2 % ≥ 15 % ✓            │
+# │  CAPEX elegível / ATL_operacional = 5 955 k€ / 39 570 k€ = 15,05 % ≥ 15 % ✓  │
+# │  (exclui 45 k€ honorários afundados — sunk cost pré-decisão, NCRF 7 §7)       │
 # │                                                                                 │
 # │  Nota: excluir o EOEP_devedor (Estado e outros entes públicos) é prática       │
 # │  aceite porque representa timing fiscal (IVA e IRC a reembolsar), não          │
@@ -41,20 +44,36 @@ incluir_hub: true
 
 projeto_hub:
   capex:
-    base: 6000000
+    base: 5955000   # CAPEX elegível: exclui 45 k€ honorários afundados (sunk cost pré-decisão)
     cronograma:
-      2025: 3000000  # 50 % — obras civis + reabilitação G1 + cais + infra eléctrica/PV
-      2026: 3000000  # 50 % — VLMs×6 + AMRs×5 + WMS + Digital Twin + Box-on-Demand + Solar
-    # Depreciação por pool de ativo (DR 25/2009) — montantes somam ao base
+      2025: 2955000  # 49,6 % — obras civis + reabilitação G1 + cais + infra eléctrica/PV (líq. 45 k€ afundados)
+      2026: 3000000  # 50,4 % — VLMs×6 + AMRs×5 + WMS + Digital Twin + Box-on-Demand + Solar
+    # Depreciação por pool de ativo (DR 25/2009) — montantes elegíveis somam ao base (5 955 k€)
+    # Pools com excluir_analise_incremental: true são filtrados pelo engine (sunk costs).
     # Nota: novos pools (box_on_demand, energia_solar) são lidos dinamicamente
     #       pelo engine via pools.values() — nenhuma alteração de código necessária.
     pools:
       construcao_civil:
-        descricao: "Reabilitação G1 + estrutura metálica + cais de carga + honorários + preparação"
-        montante: 2700000
+        descricao: "Reabilitação G1 + estrutura metálica + cais de carga + preparação (s/ honorários)"
+        montante: 2535000
         ano_inicio: 2025
         taxa_depreciacao: 0.04    # vida útil 25 anos
         vida_util_anos: 25
+      honorarios_futuros:
+        descricao: "Honorários arquitetura, eng. de detalhe, licenças — ainda a incorrer"
+        montante: 120000
+        ano_inicio: 2025
+        taxa_depreciacao: 0.04    # mesmo pool que construção civil (NCRF 7, DR 25/2009)
+        vida_util_anos: 25
+        capex_elegivel_rfai: true
+      honorarios_afundados:
+        descricao: "Estudos de viabilidade, consultoria técnica pré-decisão — já incorridos"
+        montante: 45000
+        ano_inicio: 2025          # data de referência (para auditoria); sem impacto no modelo
+        taxa_depreciacao: 0.00    # sunk cost — não depreciado (NCRF 7 §7)
+        vida_util_anos: 99        # dummy — irrelevante; pool excluído da análise incremental
+        capex_elegivel_rfai: false
+        excluir_analise_incremental: true  # filtra depreciação, VLQ e outflows de FCF
       integracao_formacao:
         descricao: "Integração de sistemas e formação inicial (escopo ampliado fases 1+2)"
         montante: 300000
@@ -91,7 +110,8 @@ projeto_hub:
         ano_inicio: 2026
         taxa_depreciacao: 0.05    # vida útil 20 anos (DGEG: 20-25 a)
         vida_util_anos: 20
-    # Verificação: 2 700 + 300 + 1 305 + 625 + 450 + 350 + 270 = 6 000 k€
+    # Verificação (elegíveis): 2 535 + 120 + 300 + 1 305 + 625 + 450 + 350 + 270 = 5 955 k€
+    # Honorários afundados (45 k€) excluídos — sunk cost, não entra no CAPEX elegível
 
     # -----------------------------------------------------------------------
     # CUSTO DE OPORTUNIDADE DO TERRENO (UC API, Doc 3) — fora dos pools acima
@@ -252,7 +272,7 @@ projeto_hub:
     # 2025 — Fase de construção civil ampliada (total: 3 000 k€)
     # Perfil: mobilização → pico (G1 + cais de carga + infra elétrica ampliada) → conclusão
     "2025":
-      jan: 110000   # mobilização de obra + estaleiro (escopo ampliado)
+      jan: 65000    # mobilização de obra + estaleiro (líq. 45 k€ honorários afundados pré-decisão)
       fev: 110000
       mar: 110000
       abr: 330000   # pico: obras civis + estrutura metálica + cais de carga
@@ -264,7 +284,7 @@ projeto_hub:
       out: 330000
       nov: 270000   # infraestrutura elétrica ampliada (200 kWp PV — preparação)
       dez: 210000   # conclusão, aprovação e receção provisória
-    # Verificação: 110×3 + 330×4 + 210 + 330×2 + 270 + 210 = 3 000 k€
+    # Verificação: 65 + 110×2 + 330×4 + 210 + 330×2 + 270 + 210 = 2 955 k€ (líq. 45 k€ afundados)
 
     # 2026 — Fase de equipamento completa — fases 1+2 integradas (total: 3 000 k€)
     # H1: VLMs×6 + AMRs×5 + WMS/MES; H2: Box-on-Demand + Digital Twin + Solar
@@ -309,16 +329,18 @@ projeto_hub:
     # Taxa aplicável (art. 23.º §1 al. b) CFI):
     #   10 % para investimentos em regiões assistidas (Centro/Aveiro).
     #
-    # CAPEX elegível adoptado = CAPEX base total (6 000 k€).
-    # Crédito total gerado: 10 % × 6 000 k€ = 600 k€.
-    # CAPEX/ATL_operacional = 6 000 k€ / 39 570 k€ = 15,2 % ≥ 15 % (limiar mínimo PEF).
+    # CAPEX elegível adoptado = 5 955 k€ (exclui 45 k€ honorários afundados — sunk cost
+    # pré-decisão não capitalizável: CFI art. 22.º-23.º incide sobre investimento realizado
+    # a partir da decisão de investimento, não sobre estudos anteriores).
+    # Crédito total gerado: 10 % × 5 955 k€ = 595,5 k€.
+    # CAPEX elegível/ATL_operacional = 5 955 k€ / 39 570 k€ = 15,05 % ≥ 15 % (limiar mínimo PEF).
     #
     # Limites (art. 23.º §6 CFI):
     #   • Máximo anual: 50 % do IRC liquidado no exercício pela empresa
     #   • Carry-forward: saldo não utilizado transportável até 10 exercícios
     aplicar: true
     taxa: 0.10
-    capex_elegivel: 6000000
+    capex_elegivel: 5955000
     limite_irc_pct: 0.50
     carry_forward_anos: 10
 
@@ -335,9 +357,11 @@ projeto_hub:
   # Análise base: VR = VLC → mais-valia = 0 → sem tributação adicional.
   #
   # Pools com VLC > 0 em 2035:
-  #   construcao_civil : 2 700 k€ − 10 × 108 k€  = 1 620 k€  [4 %,  25 a, desde 2025]
-  #   energia_solar    :   270 k€ − 10 ×  13,5 k€ =  135 k€  [5 %,  20 a, desde 2026]
-  #   terreno          :   150 k€  (custo de oportunidade; não depreciado)
+  #   construcao_civil   : 2 535 k€ − 10 × 101,4 k€ = 1 521 k€  [4 %, 25 a, desde 2025]
+  #   honorarios_futuros :   120 k€ − 10 ×   4,8 k€ =    72 k€  [4 %, 25 a, desde 2025]
+  #   energia_solar      :   270 k€ − 10 ×  13,5 k€ =   135 k€  [5 %, 20 a, desde 2026]
+  #   terreno            :   150 k€  (custo de oportunidade; não depreciado)
+  #   honorarios_afundados: excluídos — sunk cost, VLC = 0 por definição
   #
   # Totalmente amortizados antes de 2035 → VLC = 0:
   #   integracao_formacao (33 %, 3 a), vlm (12,5 %, 8 a), robotica_amr (20 %, 5 a),
@@ -345,12 +369,13 @@ projeto_hub:
   valor_residual:
     ano_referencia: 2035
     anc:
-      construcao_civil:        1620000    # VLC: 2 700 000 − 10 × 108 000
+      construcao_civil:        1521000    # VLC: 2 535 000 − 10 × 101 400
+      honorarios_futuros:        72000    # VLC:   120 000 − 10 ×   4 800
       energia_solar:            135000    # VLC:   270 000 − 10 ×  13 500
       terreno:                  150000    # custo de oportunidade (não depreciado)
-    total_anc_vlc:             1905000    # 1 620 + 135 + 150 k€
+    total_anc_vlc:             1878000    # 1 521 + 72 + 135 + 150 k€
     mais_valia_estimada:              0   # análise base: VR = VLC, sem mais-valia
-    vr_anc_liquido_impostos:   1905000    # = total_anc_vlc − mais_valia × irc_taxa
+    vr_anc_liquido_impostos:   1878000    # = total_anc_vlc − mais_valia × irc_taxa
     fundo_maneio:
       calcular_engine: true              # engine apura NFM_2035 e inclui como +CF em 2035
 

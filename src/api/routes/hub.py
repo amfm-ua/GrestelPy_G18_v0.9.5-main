@@ -63,6 +63,7 @@ def get_hub_viability(
         "fcf": [float(v) for v in res.get("fcf_df", {}).get("fcf_livre", [])]
         if hasattr(res.get("fcf_df"), "get") else [],
         "parametros": res.get("parametros", {}),
+        "nota_custos_afundados": res.get("nota_custos_afundados"),
     }
 
 

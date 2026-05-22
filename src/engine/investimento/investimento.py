@@ -51,7 +51,7 @@ def _load_hub_capex(a: Assumptions) -> dict | None:
         raw_hub = a.raw.get("hub_logistico", {})
 
         if not raw_hub.get("incluir_hub", False):
-            return None
+            return None  # cenário sem hub — nenhum CAPEX/depreciação do hub é carregado
 
         from ..projetos import hub_logistico as hub_mod
 
@@ -97,6 +97,12 @@ def investimento_anual(
     }
 
     hub_capex_map = _load_hub_capex(a)
+
+    # Guard: quando hub está desativado, nenhum CAPEX/depreciação do hub deve entrar
+    _hub_ativo = a.raw.get("hub_logistico", {}).get("incluir_hub", False)
+    assert not (not _hub_ativo and hub_capex_map is not None), (
+        "Cenário sem hub não deve conter CAPEX do hub"
+    )
 
     aft = aft_24      # AFT geral da Grestel (sem hub)
     hub_aft = 0.0     # AFT do hub rastreado separadamente para evitar dupla depreciação

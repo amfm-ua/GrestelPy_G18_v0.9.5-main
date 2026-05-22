@@ -23,13 +23,17 @@ pd.set_option("display.width", 300)
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
-def _fmt(v, decimais=0):
+def _fmt(v, decimais=None):
     if v is None or (isinstance(v, float) and np.isnan(v)):
         return "—"
     try:
-        if decimais == 0:
-            return f"{float(v):,.0f}"
-        return f"{float(v):,.{decimais}f}"
+        f = float(v)
+        if decimais is not None:
+            return f"{f:,.{decimais}f}"
+        # auto: sem decimais para valores grandes, 2 casas para valores pequenos
+        if abs(f) >= 100 or f == round(f):
+            return f"{f:,.0f}"
+        return f"{f:,.2f}"
     except (TypeError, ValueError):
         return str(v)
 

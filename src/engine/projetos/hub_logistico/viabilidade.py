@@ -165,6 +165,8 @@ def _vlq_ativos(hub: dict, ano_fim: int) -> float:
 
     vlq = 0.0
     for pool in pools.values():
+        if pool.get("excluir_analise_incremental", False):
+            continue
         montante = float(pool["montante"])
         vida_util = int(pool["vida_util_anos"])
         ano_pool = int(pool["ano_inicio"])
@@ -480,7 +482,21 @@ def viabilidade_hub(
     )
     rfai_aplicado_total = float(df_fcf["rfai_credito"].sum()) if "rfai_credito" in df_fcf.columns else 0.0
 
+    # Nota de auditoria — custos afundados excluídos da análise incremental
+    _sunk_pools = {
+        k: v for k, v in proj["capex"]["pools"].items()
+        if v.get("excluir_analise_incremental", False)
+    }
+    _sunk_total = sum(float(v["montante"]) for v in _sunk_pools.values())
+    nota_custos_afundados = (
+        f"Custos afundados de exploração ({_sunk_total / 1000:.0f} k€) excluídos da análise "
+        f"incremental por corresponderem a honorários incorridos antes da decisão de "
+        f"investimento (princípio dos cash flows incrementais — Brealey, Myers & Allen, Cap. 6)."
+        if _sunk_total > 0 else None
+    )
+
     return {
+        "nota_custos_afundados": nota_custos_afundados,
         "fcf_df": df_fcf,
         "valor_terminal": vt,
         "valor_residual_ativos": vr_ativos,

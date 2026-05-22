@@ -29,11 +29,14 @@ def _dep_por_ano(proj: dict, year: int) -> float:
 
     Cada pool deprecia montante/vida_util por ano, a partir de
     max(ano_inicio_pool, ano_inicio_beneficios) e durante vida_util anos.
+    Pools com excluir_analise_incremental: true são ignorados (sunk costs).
     """
     pools = proj["capex"]["pools"]
     ano_inicio_op = int(proj["ano_inicio_beneficios"])
     total = 0.0
     for pool in pools.values():
+        if pool.get("excluir_analise_incremental", False):
+            continue
         montante = float(pool["montante"])
         vida_util = int(pool["vida_util_anos"])
         ano_pool = int(pool["ano_inicio"])
