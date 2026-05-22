@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git fetch *)",
+      "Bash(python -m pytest tests/ -q --tb=no -rfE)",
+      "Bash(python \"C:\\\\Users\\\\amfmn\\\\AppData\\\\Local\\\\Temp\\\\snap_fase2.py\")",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(.venv/Scripts/python -c \"import yaml, pandas, pytest; print\\('deps OK'\\)\")",
+      "Bash(.venv/Scripts/python -m pytest tests/ -q --tb=no -rfE)",
+      "Bash(.venv/Scripts/python \"C:\\\\Users\\\\amfmn\\\\AppData\\\\Local\\\\Temp\\\\snap_fase2.py\")",
+      "Bash(git rm *)",
+      "Bash(.venv/Scripts/python -m pytest tests/ -q --tb=short -rfE)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}
