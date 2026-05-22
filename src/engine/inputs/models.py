@@ -246,8 +246,6 @@ class Assumptions:
                     "pvu_mercadorias_crescimento",
                     {},
                 ),
-                "volume_produto_crescimento": self.raw.get("qtd_produto_crescimento", {}),
-                "volume_mercadoria_crescimento": self.raw.get("qtd_mercadorias_crescimento", {}),
                 "fse": self.raw.get("crescimento_fse", {}),
                 "pessoal": self.raw.get("crescimento_pessoal", {}),
                 "custo_mercadorias": self.raw.get("crescimento_custo_mercadorias", {}),

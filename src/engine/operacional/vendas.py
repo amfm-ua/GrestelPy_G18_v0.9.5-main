@@ -339,34 +339,40 @@ def _factor_2025(
 
     block = a.cenario_block()
 
-    # Volume: grandeza física, não ligada à inflação
-    vol_block = (block.get("volume_produto_crescimento", {}) or {}).get(produto)
+    # Volume: taxa global do cenário activo (baseline macro)
+    global_vol_block = block.get("volume_vendas") or a.raw.get("crescimento_volume_vendas", {})
+    cum_vol_global = _monthly_cum_index(_monthly_rates(global_vol_block))
 
-    if vol_block is None:
-        vol_block = block.get("volume_vendas") or a.raw.get("crescimento_volume_vendas", {})
+    # Taxa por produto: differential acima do baseline (estratégia de produto).
+    # Multiplica o cenário: total = global × produto_delta
+    prod_vol_block = a.raw.get("qtd_produto_crescimento", {}).get(produto)
+    if prod_vol_block is not None:
+        cum_vol_prod = _monthly_cum_index(_monthly_rates(prod_vol_block))
+    else:
+        cum_vol_prod = {m: 1.0 for m in MESES}
 
-    cum_vol = _monthly_cum_index(_monthly_rates(vol_block))
-
-    # Preço: Filosofia B — spread real composto com inflação mensal
-    pvu_block = (block.get("pvu_produto_crescimento", {}) or {}).get(produto)
-
-    if pvu_block is None:
-        pvu_block = a.raw.get("pvu_produto_crescimento", {}).get(produto)
-
-    if pvu_block is None:
-        pvu_block = block.get("preco_vendas", {})
-
-    cum_price = _monthly_cum_index(
-        _monthly_rates(pvu_block, inflation_monthly=a.inflacao_mensal_2025())
+    # Preço: baseline global do cenário (Filosofia B — spread real + inflação)
+    global_pvu_block = block.get("preco_vendas", {})
+    cum_price_global = _monthly_cum_index(
+        _monthly_rates(global_pvu_block, inflation_monthly=a.inflacao_mensal_2025())
     )
+
+    # PVU por produto: differential acima do baseline (multiplica o cenário)
+    prod_pvu_block = a.raw.get("pvu_produto_crescimento", {}).get(produto)
+    if prod_pvu_block is not None:
+        cum_price_prod = _monthly_cum_index(
+            _monthly_rates(prod_pvu_block, inflation_monthly=a.inflacao_mensal_2025())
+        )
+    else:
+        cum_price_prod = {m: 1.0 for m in MESES}
 
     if mercado in ("EXTERNO", "EXT"):
         s = _ext_seasonality(a, produto)
     else:
         s = _saz_to_dict(a.sazonalidade.get(mercado, []))
 
-    vol_f = sum(s[m] * cum_vol[m] for m in MESES)
-    price_f = sum(s[m] * cum_price[m] for m in MESES)
+    vol_f = sum(s[m] * cum_vol_global[m] * cum_vol_prod[m] for m in MESES)
+    price_f = sum(s[m] * cum_price_global[m] * cum_price_prod[m] for m in MESES)
 
     return vol_f, price_f
 
@@ -692,8 +698,8 @@ def vendas_mercadorias_anuais(
             }
         )
 
-        # Override por mercadoria se definido em qtd_mercadorias_crescimento
-        vol_block_merc = (block.get("volume_mercadoria_crescimento", {}) or {}).get(nome)
+        # Taxa por mercadoria é estratégia (fixa). Fallback para global do cenário.
+        vol_block_merc = a.raw.get("qtd_mercadorias_crescimento", {}).get(nome)
         if vol_block_merc is not None:
             cum_vol_merc = _monthly_cum_index(_monthly_rates(vol_block_merc))
             vol_f_merc = sum(saz[m] * cum_vol_merc[m] for m in MESES)

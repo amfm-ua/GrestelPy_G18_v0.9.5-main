@@ -112,6 +112,17 @@ _SCENARIO_OVERRIDES: dict[str, dict] = {
             2028: 0.023,
             2029: 0.024,
         },
+        # Diferenciação geográfica e de canal — cenário optimista
+        # USA/UE: aceleração de volume (USD forte + flagship Madrid + novos marketplaces NL/DE)
+        # Hotelaria: tração em contratos de hotel e cruzeiros
+        # E_Commerce: sucesso nos novos marketplaces
+        # PVU USA: poder de preço adicional via depreciação do USD (capturado em EUR)
+        # PVU Hotelaria/E_Commerce: premium de canal D2C e contratos de luxo
+        # NOTA: estes diferenciais aplicam-se apenas a 2025; 2026-2029 usam crescimento_volume_vendas global
+        "crescimento_volume_por_mercado": {"PT": 0.00, "UE": 0.03, "USA": 0.03, "ROW": 0.01},
+        "crescimento_volume_por_canal": {"Private_Label": 0.02, "Hotelaria": 0.05, "Retalho": 0.01, "E_Commerce": 0.04},
+        "crescimento_pvu_por_mercado": {"PT": 0.01, "UE": 0.01, "USA": 0.03, "ROW": 0.00},
+        "crescimento_pvu_por_canal": {"Private_Label": 0.00, "Hotelaria": 0.02, "Retalho": 0.00, "E_Commerce": 0.015},
     },
     "Downside": {
         # Volume: directo
@@ -138,6 +149,18 @@ _SCENARIO_OVERRIDES: dict[str, dict] = {
             2028: 0.042,
             2029: 0.043,
         },
+        # Diferenciação geográfica e de canal — cenário pessimista
+        # USA: EUR apreciado → produtos Grestel mais caros em USD, perda de competitividade
+        # UE: estagnação do retalho tradicional, adiamento de encomendas
+        # Private_Label: clientes conservadores, redução de quantidades e pressão de margem
+        # Hotelaria: menor gasto corporativo em eventos e cruzeiros
+        # E_Commerce: compensação digital parcial (única fonte de resiliência)
+        # PVU USA: necessidade de descontar para manter quota em USD (EUR apreciado agrava)
+        # NOTA: estes diferenciais aplicam-se apenas a 2025; 2026-2029 usam crescimento_volume_vendas global
+        "crescimento_volume_por_mercado": {"PT": 0.00, "UE": -0.02, "USA": -0.03, "ROW": -0.01},
+        "crescimento_volume_por_canal": {"Private_Label": -0.03, "Hotelaria": -0.03, "Retalho": -0.01, "E_Commerce": 0.01},
+        "crescimento_pvu_por_mercado": {"PT": 0.00, "UE": -0.01, "USA": -0.03, "ROW": -0.01},
+        "crescimento_pvu_por_canal": {"Private_Label": -0.02, "Hotelaria": 0.00, "Retalho": -0.01, "E_Commerce": 0.00},
         # Hub Logístico — haircuts para ambiente adverso
         # poupança −15%: inflação energia eleva OPEX robótica/WMS;
         # escassez de técnicos qualificados pressiona custos de manutenção
@@ -190,6 +213,19 @@ _SCENARIO_OVERRIDES: dict[str, dict] = {
             2028: 0.023,
             2029: 0.033,
         },
+        # Diferenciação geográfica e de canal — cenário de stress
+        # USA: choque tarifário severo (tarifas agressivas inviabilizam margens actuais)
+        # ROW: contágio geopolítico e desaceleração global
+        # UE: contágio económico, cautela nos mercados europeus
+        # Hotelaria: colapso da hotelaria (crises no turismo + cancelamento de grandes contratos)
+        # Private_Label: paragem súbita de encomendas (excess stock de produto acabado)
+        # PVU USA: absorção tarifária + incapacidade de repercutir preços ao mercado
+        # PVU Hotelaria: descontos agressivos para reter os contratos remanescentes
+        # NOTA: estes diferenciais aplicam-se apenas a 2025; 2026-2029 usam crescimento_volume_vendas global
+        "crescimento_volume_por_mercado": {"PT": -0.01, "UE": -0.03, "USA": -0.12, "ROW": -0.05},
+        "crescimento_volume_por_canal": {"Private_Label": -0.05, "Hotelaria": -0.10, "Retalho": -0.02, "E_Commerce": -0.02},
+        "crescimento_pvu_por_mercado": {"PT": -0.01, "UE": -0.02, "USA": -0.08, "ROW": -0.04},
+        "crescimento_pvu_por_canal": {"Private_Label": -0.03, "Hotelaria": -0.05, "Retalho": -0.01, "E_Commerce": -0.01},
         # Hub Logístico — haircuts severos + atraso de ramp-up
         # poupança −30%: choque energético nos fornos eleva OPEX automação;
         #   qualidade de pasta instável limita ganhos de IA/visão picking;

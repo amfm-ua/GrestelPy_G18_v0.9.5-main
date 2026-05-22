@@ -34,7 +34,9 @@ crescimento_pvu_vendas:
   # acrescimos_mensais: {}
 
 qtd_produto_crescimento:
-  # Crescimento de quantidade por produto — grandeza física, valor directo
+  # Crescimento de quantidade DIFERENCIAL por produto (acumula sobre o baseline do cenário).
+  # Exemplo: base_2025: 0.05 → produto cresce 5% ACIMA do crescimento global do cenário.
+  # Total = crescimento_volume_vendas[cenário] × (1 + 0.05). Valor 0.00 = sem diferencial.
   Pratos:
     base_2025: 0.05
   Tigelas:
@@ -47,7 +49,8 @@ qtd_produto_crescimento:
     base_2025: 0.03
 
 qtd_mercadorias_crescimento:
-  # Crescimento de quantidade de mercadorias — grandeza física, valor directo
+  # Crescimento de quantidade DIFERENCIAL por mercadoria (acumula sobre baseline do cenário).
+  # Mesma lógica de qtd_produto_crescimento.
   Cutelaria:
     base_2025: 0.04
   Vidros_Cristais:
@@ -56,8 +59,8 @@ qtd_mercadorias_crescimento:
     base_2025: 0.04
 
 pvu_produto_crescimento:
-  # Spread real de PVU por produto.
-  # 7.6% real + 2.2% inflação ≈ 10.0% nominal (reposicionamento de preço)
+  # Spread real de PVU DIFERENCIAL por produto (acumula sobre baseline do cenário).
+  # Total = pvu_global[cenário] × (1 + spread_produto). 7.6% = reposicionamento de preço forte.
   Pratos:
     base_2025: 0.076
   Tigelas:

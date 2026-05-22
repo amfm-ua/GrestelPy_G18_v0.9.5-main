@@ -24,16 +24,13 @@ _EDITABLE: dict[str, tuple[str, str, str]] = {
     "vendas_2026_2029": ("pressupostos/2026_2029/vendas.yaml",                 "Vendas 2026-2029 · crescimento",                "Pressupostos"),
     "custos_2026_2029": ("pressupostos/2026_2029/custos.yaml",                 "Custos 2026-2029",                              "Pressupostos"),
     "investimento":     ("pressupostos/investimento.yaml",                     "Investimento · CAPEX e depreciação",            "Pressupostos"),
-    "schedules":        ("computed/schedules.yaml",                            "Schedules BAU M6",                              "Pressupostos"),
     "hub":              ("subsidiarias/hub_logistico/m6_hub_assumptions.yaml", "Hub Logístico M6",                              "Pressupostos"),
     "ecogres":          ("subsidiarias/ecogres/ecogres_assumptions.yaml",      "Ecogres",                                       "Pressupostos"),
     "smart":            ("master/smart_objetivos.yaml",                        "Objetivos SMART",                               "Pressupostos"),
-    # ── Produtos & Mercadorias ────────────────────────────────────────────────
-    "master_produtos":    ("master/produtos.yaml",               "Produtos · CIP e estrutura de custos",          "Produtos & Mercadorias"),
-    "master_mercadorias": ("master/mercadorias.yaml",            "Mercadorias · PCU (preço de compra)",           "Produtos & Mercadorias"),
-    "hist_produtos":      ("historico/2024/produtos.yaml",       "Produtos 2024 · mix de vendas e PVU base",      "Produtos & Mercadorias"),
-    "hist_mercadorias":   ("historico/2024/mercadorias.yaml",    "Mercadorias 2024 · mix, PVU e canais",          "Produtos & Mercadorias"),
-    "hist_base":          ("historico/2024/base.yaml",           "Base 2024 · matérias-primas e auditado",        "Produtos & Mercadorias"),
+    # ── Dados 2024 ───────────────────────────────────────────────────────────
+    "hist_produtos":      ("historico/2024/produtos.yaml",       "Produtos 2024 · mix de vendas e PVU base",      "Dados 2024"),
+    "hist_mercadorias":   ("historico/2024/mercadorias.yaml",    "Mercadorias 2024 · mix, PVU e canais",          "Dados 2024"),
+    "hist_base":          ("historico/2024/base.yaml",           "Base 2024 · matérias-primas e auditado",        "Dados 2024"),
 }
 
 
