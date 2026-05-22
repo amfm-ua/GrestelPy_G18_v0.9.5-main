@@ -55,72 +55,14 @@ def _dist_sazonal_vn_weighted(
 
     Aceita sazonalidade em formato dict ou list.
     """
-    from ..operacional.vendas import _saz_to_dict
+    df_mensal = vendas_mod.vendas_mensais_2025(a, base, sched)
+    vn_by_mes = df_mensal.groupby("mes")["vn"].sum().to_dict()
+    total = sum(float(v) for v in vn_by_mes.values())
 
-    df_prod = vendas_mod.vendas_anuais(a, base, sched)
-    df_merc = vendas_mod.vendas_mercadorias_anuais(a, base)
-    df_total = vendas_mod.resumo_anual(df_prod, df_merc)
-
-    vn_total_2025 = float(df_total[df_total.ano == 2025]["vn_total"].iloc[0])
-
-    if vn_total_2025 == 0:
+    if total == 0:
         return {m: 1.0 / 12 for m in MESES}
 
-    saz_raw = a.sazonalidade
-
-    saz = {
-        "PT": _saz_to_dict(saz_raw.get("PT", [])),
-        "UE": _saz_to_dict(saz_raw.get("UE", [])),
-        "USA": _saz_to_dict(saz_raw.get("USA", [])),
-        "ROW": _saz_to_dict(saz_raw.get("ROW", [])),
-    }
-
-    df_2025 = df_prod[df_prod.ano == 2025].copy()
-
-    vn_by_mkt: dict[str, float] = {}
-
-    for mkt in ("PT", "UE", "USA", "ROW"):
-        vn_by_mkt[mkt] = float(df_2025[df_2025["mercado"] == mkt]["vn"].sum())
-
-    vn_ext = float(df_2025[df_2025["mercado"].isin(["EXT", "EXTERNO"])]["vn"].sum())
-
-    if vn_ext:
-        mercados = a.mercados or {}
-        usa_w = float(mercados.get("USA", {}).get("peso_global", 0.0))
-        row_w = float(mercados.get("ROW", {}).get("peso_global", 0.0))
-        total_ext_w = usa_w + row_w
-
-        if total_ext_w > 0:
-            vn_by_mkt["USA"] += vn_ext * usa_w / total_ext_w
-            vn_by_mkt["ROW"] += vn_ext * row_w / total_ext_w
-        else:
-            vn_by_mkt["USA"] += vn_ext * 0.5
-            vn_by_mkt["ROW"] += vn_ext * 0.5
-
-    df_merc_2025 = df_merc[df_merc.ano == 2025]
-    vn_by_mkt["PT"] += float(df_merc_2025["vn"].sum())
-
-    total_mkt = sum(vn_by_mkt.values()) or 1.0
-
-    dist: dict[str, float] = {}
-
-    for m in MESES:
-        dist[m] = (
-            vn_by_mkt["PT"] * saz["PT"][m]
-            + vn_by_mkt["UE"] * saz["UE"][m]
-            + vn_by_mkt["USA"] * saz["USA"][m]
-            + vn_by_mkt["ROW"] * saz["ROW"][m]
-        ) / total_mkt
-
-    total = sum(dist.values())
-
-    if total > 0:
-        return {
-            m: v / total
-            for m, v in dist.items()
-        }
-
-    return {m: 1.0 / 12 for m in MESES}
+    return {m: float(vn_by_mes.get(m, 0.0)) / total for m in MESES}
 
 def _dist_sazonal_total(
     a: Assumptions,

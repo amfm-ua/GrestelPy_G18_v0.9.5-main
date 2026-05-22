@@ -121,7 +121,17 @@ def _qty_2024_from_data(a: Assumptions, base: Base2024) -> pd.DataFrame:
         if mercado_mix:
             pt_w = float(mercado_mix.get("PT", 0.33))
             ue_w = float(mercado_mix.get("UE", 0.30))
-            ext_w = float(mercado_mix.get("EXT", 0.37))
+            ext_w = float(
+                mercado_mix.get(
+                    "EXT",
+                    float(mercado_mix.get("USA", 0.0)) + float(mercado_mix.get("ROW", 0.0)),
+                )
+            )
+        elif a.mix_mercado_produto:
+            mix = a.mix_mercado_produto.get(nome, {})
+            pt_w = float(mix.get("PT", 0.0))
+            ue_w = float(mix.get("UE", 0.0))
+            ext_w = float(mix.get("EXT", 0.0)) + float(mix.get("USA", 0.0)) + float(mix.get("ROW", 0.0))
         else:
             pt_w = vn_pt / (vn_pt + vn_ext) if (vn_pt + vn_ext) else 0.33
             ue_w = 0.30
@@ -216,7 +226,7 @@ def _monthly_rates(
 
     Estrutura do bloco:
       base_2025 / annual_2025  → spread real anual base
-      acrescimos_mensais       → delta (pp) adicionado a cada mês
+      acrescimos_mensais       → ajuste pontual no factor do mês
     """
     block = block or {}
 
@@ -236,17 +246,23 @@ def _monthly_rates(
     }
 
     out = {}
+    base_index = 1.0
+    previous_index = 1.0
 
     for i, mes in enumerate(MESES):
         idx = _MES_NOME_IDX[mes]
         delta = acrescimos.get(mes, acrescimos.get(idx, acrescimos.get(str(idx), 0.0)))
-        real_rate = g_base_real + float(delta)
 
         if inflation_monthly is not None and i < len(inflation_monthly):
             inf = inflation_monthly[i]
-            out[mes] = (1.0 + inf) * (1.0 + real_rate) - 1.0
+            month_base_rate = (1.0 + inf) * (1.0 + g_base_real) - 1.0
         else:
-            out[mes] = real_rate
+            month_base_rate = g_base_real
+
+        base_index *= 1.0 + month_base_rate
+        month_index = base_index * (1.0 + float(delta))
+        out[mes] = month_index / previous_index - 1.0
+        previous_index = month_index
 
     return out
 
@@ -295,6 +311,13 @@ def _eur_usd_factor(a: Assumptions, ano: int) -> float:
 
 def _market_weights_for_ext(a: Assumptions, produto: str) -> tuple[float, float]:
     """Pesos USA/ROW para o mercado EXT."""
+    mix_override = a.raw.get("mix_mercado_override") or {}
+    if mix_override:
+        usa = float(mix_override.get("USA", 0.0))
+        row = float(mix_override.get("ROW", 0.0))
+        if usa + row > 0:
+            return usa, row
+
     mix_mp = a.mix_mercado_produto or {}
 
     if produto in mix_mp:
@@ -769,6 +792,85 @@ def resumo_anual(
     return out.reset_index()
 
 
+def vendas_mercado_anual(
+    a: Assumptions,
+    base: Base2024,
+    sched: Schedules,
+    df_prod: pd.DataFrame,
+    df_merc: pd.DataFrame,
+) -> pd.DataFrame:
+    """VN anual por mercado final (PT, UE, USA, ROW), incluindo mercadorias."""
+    _ = sched
+
+    df = _qty_2024_mixed(a, base)
+    pvu_map = a.raw.get("pvu_base", base.pvu_base)
+    g_vol_yr = a.cresc_2026_2029("volume_vendas")
+    rows = []
+
+    for _, r in df.iterrows():
+        prod = r["produto"]
+        markets = [(r["mercado"], float(r["qtd_2024"] or 0.0))]
+
+        if r["mercado"] in ("EXT", "EXTERNO"):
+            usa_w, row_w = _market_weights_for_ext(a, r["produto"])
+            total_w = usa_w + row_w
+            if total_w > 0:
+                markets = [
+                    ("USA", float(r["qtd_2024"] or 0.0) * usa_w / total_w),
+                    ("ROW", float(r["qtd_2024"] or 0.0) * row_w / total_w),
+                ]
+            else:
+                markets = [("ROW", float(r["qtd_2024"] or 0.0))]
+
+        for mercado, qty_2024 in markets:
+            pvu_2024 = pvu_map.get(prod, 0.0)
+            rows.append({"ano": 2024, "mercado": mercado, "vn": qty_2024 * pvu_2024})
+
+            vol_factor, price_factor = _factor_2025(a, base, mercado, prod)
+            qty_2025 = (
+                qty_2024
+                * vol_factor
+                * (1 + _market_uplift(a, mercado, prod))
+                * _vol_factor_mercado_canal(a, prod, mercado)
+            )
+            pvu_2025 = pvu_2024 * price_factor * _pvu_factor_mercado_canal(a, prod, mercado)
+            fx_2025 = _eur_usd_factor(a, 2025) if mercado in ("USA", "ROW") else 1.0
+
+            rows.append({"ano": 2025, "mercado": mercado, "vn": qty_2025 * pvu_2025 * fx_2025})
+
+            prev_qty = qty_2025
+            prev_pvu = pvu_2025
+            g_price_yr = a.cresc_2026_2029_pvu(prod)
+
+            for y in YEARS[1:]:
+                prev_qty *= 1 + g_vol_yr[y]
+                prev_pvu *= 1 + g_price_yr[y]
+                fx = _eur_usd_factor(a, y) if mercado in ("USA", "ROW") else 1.0
+
+                rows.append({"ano": y, "mercado": mercado, "vn": prev_qty * prev_pvu * fx})
+
+    for _, r in df_merc.iterrows():
+        rows.append({"ano": r["ano"], "mercado": "PT", "vn": float(r["vn"] or 0.0)})
+
+    if not rows:
+        return pd.DataFrame(columns=["ano", "mercado", "vn", "peso"])
+
+    out = pd.DataFrame(rows).groupby(["ano", "mercado"], as_index=False)["vn"].sum()
+    target_prod = df_prod.groupby("ano")["vn"].sum()
+    target_merc = df_merc.groupby("ano")["vn"].sum()
+    target_totals = target_prod.add(target_merc, fill_value=0.0)
+    current_totals = out.groupby("ano")["vn"].transform("sum")
+    out["vn"] = out.apply(
+        lambda r: r["vn"] * target_totals.get(r["ano"], current_totals.loc[r.name]) / current_totals.loc[r.name]
+        if current_totals.loc[r.name] else r["vn"],
+        axis=1,
+    )
+    totals = out.groupby("ano")["vn"].transform("sum")
+    out["peso"] = out["vn"] / totals.where(totals != 0, 1.0)
+
+    return out
+
+
 def vendas_mensais_2025(
     a: Assumptions,
     base: Base2024,
@@ -781,16 +883,49 @@ def vendas_mensais_2025(
     df_2025_prod = df_anual[df_anual.ano == 2025].copy()
 
     rows = []
+    block = a.cenario_block()
+    global_vol_block = block.get("volume_vendas") or a.raw.get("crescimento_volume_vendas", {})
+    global_pvu_block = block.get("preco_vendas", {})
+    cum_vol_global = _monthly_cum_index(_monthly_rates(global_vol_block))
+    cum_price_global = _monthly_cum_index(
+        _monthly_rates(global_pvu_block, inflation_monthly=a.inflacao_mensal_2025())
+    )
 
     for _, r in df_2025_prod.iterrows():
         prod = r["produto"]
         merc = r["mercado"]
         vn_anual = r["vn"]
+        prod_vol_block = a.raw.get("qtd_produto_crescimento", {}).get(prod)
+        prod_pvu_block = a.raw.get("pvu_produto_crescimento", {}).get(prod)
+        cum_vol_prod = (
+            _monthly_cum_index(_monthly_rates(prod_vol_block))
+            if prod_vol_block is not None
+            else {m: 1.0 for m in MESES}
+        )
+        cum_price_prod = (
+            _monthly_cum_index(
+                _monthly_rates(prod_pvu_block, inflation_monthly=a.inflacao_mensal_2025())
+            )
+            if prod_pvu_block is not None
+            else {m: 1.0 for m in MESES}
+        )
 
         if merc in ("EXT", "EXTERNO"):
             s = _ext_seasonality(a, prod)
         else:
             s = _saz_to_dict(a.sazonalidade.get(merc, []))
+
+        weights = {
+            m: (
+                s[m]
+                * cum_vol_global[m]
+                * cum_vol_prod[m]
+                * cum_price_global[m]
+                * cum_price_prod[m]
+            )
+            for m in MESES
+        }
+        total_weight = sum(weights.values()) or 1.0
 
         for m in MESES:
             rows.append(
@@ -798,7 +933,7 @@ def vendas_mensais_2025(
                     "mes": m,
                     "produto": prod,
                     "mercado": merc,
-                    "vn": vn_anual * s[m],
+                    "vn": vn_anual * weights[m] / total_weight,
                 }
             )
 
@@ -806,13 +941,22 @@ def vendas_mensais_2025(
     df_2025_merc = df_merc[df_merc.ano == 2025]
 
     for _, r in df_2025_merc.iterrows():
+        vol_block_merc = a.raw.get("qtd_mercadorias_crescimento", {}).get(r["mercadoria"])
+        if vol_block_merc is not None:
+            cum_vol_merc = _monthly_cum_index(_monthly_rates(vol_block_merc))
+        else:
+            cum_vol_merc = cum_vol_global
+
+        weights = {m: saz_pt[m] * cum_vol_merc[m] for m in MESES}
+        total_weight = sum(weights.values()) or 1.0
+
         for m in MESES:
             rows.append(
                 {
                     "mes": m,
                     "produto": r["mercadoria"],
                     "mercado": "PT",
-                    "vn": r["vn"] * saz_pt[m],
+                    "vn": r["vn"] * weights[m] / total_weight,
                 }
             )
 

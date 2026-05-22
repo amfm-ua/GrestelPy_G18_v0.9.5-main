@@ -95,6 +95,7 @@ def run_model(
 
     dfs["vendas_produto_anual"] = df_prod
     dfs["vendas_mercadoria_anual"] = df_merc
+    dfs["vendas_mercado_anual"] = vendas_mod.vendas_mercado_anual(a, base, sched, df_prod, df_merc)
 
     # FSE detalhe anual (todas as rubricas, 2024-2029)
     try:

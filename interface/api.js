@@ -104,6 +104,53 @@ const API = (() => {
     });
   }
 
+  function _buildMercados(rows, fallback) {
+    const labels = {
+      PT:  fallback?.PT?.label  || "Portugal",
+      UE:  fallback?.UE?.label  || "Uniao Europeia",
+      USA: fallback?.USA?.label || "Estados Unidos",
+      ROW: fallback?.ROW?.label || "Resto do Mundo",
+    };
+    const totals = { PT: 0, UE: 0, USA: 0, ROW: 0 };
+
+    for (const r of rows || []) {
+      if (Number(r.ano) !== 2025) continue;
+      const mercado = r.mercado;
+      if (!Object.prototype.hasOwnProperty.call(totals, mercado)) continue;
+      totals[mercado] += Number(r.vn || 0);
+    }
+
+    const total = Object.values(totals).reduce((s, v) => s + v, 0);
+    if (total <= 0) return fallback;
+
+    return Object.fromEntries(
+      Object.entries(totals).map(([mercado, vn]) => [
+        mercado,
+        { label: labels[mercado], peso: vn / total },
+      ])
+    );
+  }
+
+  function _buildMeses(rows, fallback) {
+    const order = GRESTEL.MESES || ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    const mercadoriasKeys = new Set(Object.keys(MERC_LABEL));
+    const byMes = Object.fromEntries(
+      order.map(mes => [mes, { mes, produtos: 0, mercadorias: 0, total: 0 }])
+    );
+
+    for (const r of rows || []) {
+      const mes = r.mes;
+      if (!byMes[mes]) continue;
+      const vn = Number(r.vn || 0);
+      const bucket = mercadoriasKeys.has(r.produto) ? "mercadorias" : "produtos";
+      byMes[mes][bucket] += vn;
+      byMes[mes].total += vn;
+    }
+
+    const total = Object.values(byMes).reduce((s, m) => s + m.total, 0);
+    return total > 0 ? order.map(mes => byMes[mes]) : fallback;
+  }
+
   async function vendasAnalise({ cenario, hub_on, ecogres_on }) {
     if (useMock) {
       const dr = GRESTEL.projectDR(cenario, { hubOn: hub_on, ecogresOn: ecogres_on });
@@ -126,7 +173,9 @@ const API = (() => {
     // Substituir familiasProd e mercadorias com dados reais do backend
     const familiasProd = _buildFamilias(outputs.vendas_produto_anual || [], "produto", PROD_LABEL);
     const mercadorias  = _buildFamilias(outputs.vendas_mercadoria_anual || [], "mercadoria", MERC_LABEL);
-    return { ...base, familiasProd, mercadorias };
+    const mercados_2025 = _buildMercados(outputs.vendas_mercado_anual || [], base.mercados_2025);
+    const meses = _buildMeses(outputs.vendas_mensal_2025 || [], base.meses);
+    return { ...base, familiasProd, mercadorias, mercados_2025, meses };
   }
 
   // ─── Normalização: backend (snake_case, sinais contabilísticos) → frontend ──

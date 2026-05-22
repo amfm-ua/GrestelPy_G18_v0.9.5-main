@@ -25,8 +25,8 @@
 crescimento_volume_vendas:
   # Volume é grandeza física — não ligado à inflação, valor directo
   base_2025: 0.02
-  # acrescimos_mensais:
-  #   Mai: 0.01
+  acrescimos_mensais:
+    Mai: 0.5
 
 crescimento_pvu_vendas:
   # Spread real de preço (pricing power): 0.8% real + 2.2% inflação ≈ 3.0% nominal
@@ -38,11 +38,11 @@ qtd_produto_crescimento:
   # Exemplo: base_2025: 0.05 → produto cresce 5% ACIMA do crescimento global do cenário.
   # Total = crescimento_volume_vendas[cenário] × (1 + 0.05). Valor 0.00 = sem diferencial.
   Pratos:
-    base_2025: 0.05
+    base_2025: 0.02
   Tigelas:
-    base_2025: 0.05
+    base_2025: 0.02
   Canecas:
-    base_2025: 0.05
+    base_2025: 0.02
   Pecas_Servir:
     base_2025: 0.03
   Forno_Cozinha:
