@@ -1,7 +1,11 @@
 // data.js — Mock dataset derived from the Grestel backend YAML inputs.
-// 2024 actuals come straight from src/engine/data/historico/2024/base.yaml.
-// Forward years are projected with the growth rates declared in
-// src/engine/data/cenarios/custom_scenarios.yaml.
+// 2024 actuals from src/engine/data/historico/2024/base.yaml.
+// Scenario growth rates derived from src/engine/inputs/loader.py (_SCENARIO_OVERRIDES)
+// + pressupostos/2025/vendas|custos.yaml + pressupostos/2026_2029/vendas|custos.yaml.
+//
+// Taxas NOMINAIS: nominal = (1+inf)×(1+real)−1
+// Inflações: 2025=2.2%, 2026=2.0%, 2027=1.8%, 2028=1.7%, 2029=1.6%
+// Volume é grandeza física — taxa directa (sem composição com inflação).
 
 const GRESTEL = (() => {
   const YEARS = [2024, 2025, 2026, 2027, 2028, 2029];
@@ -26,43 +30,59 @@ const GRESTEL = (() => {
     rl: 1390208.75,
   };
 
-  // Scenario growth profiles (custom_scenarios.yaml)
+  // Scenario growth profiles — taxas NOMINAIS derivadas de loader.py + YAMLs
+  // Prob.: Base 50% | Upside 20% | Downside 25% | Stress 5%
   const SCENARIOS = {
     Base: {
       label: "Base",
-      desc: "Crescimento moderado alinhado com o sector cerâmico português.",
-      vol:    [null, 0.030, 0.030, 0.030, 0.030, 0.030],
+      prob:  0.50,
+      desc: "Continuidade das tendências 2024; crescimento moderado e sustentável. EUR/USD estável, marcas próprias +3%, Private Label recupera.",
+      // vol: directo (físico) | preco/fse/pessoal/cmvmc: nominais
+      vol:    [null, 0.020, 0.030, 0.030, 0.030, 0.030],
       preco:  [null, 0.030, 0.030, 0.030, 0.030, 0.030],
-      fse:    [null, 0.030, 0.030, 0.030, 0.030, 0.030],
-      pessoal:[null, 0.035, 0.030, 0.030, 0.030, 0.030],
+      fse:    [null, 0.030, 0.030, 0.030, 0.050, 0.050],
+      pessoal:[null, 0.035, 0.035, 0.035, 0.030, 0.050],
       cmvmc:  [null, 0.030, 0.030, 0.030, 0.030, 0.030],
     },
     Upside: {
       label: "Upside",
-      desc: "Aceleração export USA/UE, canal hotelaria e reposicionamento premium.",
-      vol:    [null, 0.045, 0.045, 0.040, 0.035, 0.030],
-      preco:  [null, 0.040, 0.035, 0.030, 0.030, 0.030],
-      fse:    [null, 0.020, 0.025, 0.030, 0.030, 0.030],
-      pessoal:[null, 0.030, 0.030, 0.030, 0.030, 0.030],
-      cmvmc:  [null, 0.035, 0.035, 0.030, 0.030, 0.030],
+      prob:  0.20,
+      desc: "USD aprecia vs EUR; flagship Madrid + novos marketplaces NL/DE; forte tração em Hotelaria/Cruzeiros; Ecogres aceite no mercado.",
+      // crescimento_volume_vendas override: 5%/5%/5%/5%/4%
+      // crescimento_pvu_vendas override (real): 2.7%/2.9%/2.2%/2.3%/1.4% → nominal ≈5%/5%/4%/4%/3%
+      // crescimento_fse override apenas 2028-2029 (real 2.3%/2.4%) → nominal ≈4%/4%
+      vol:    [null, 0.050, 0.050, 0.050, 0.050, 0.040],
+      preco:  [null, 0.050, 0.050, 0.040, 0.040, 0.030],
+      fse:    [null, 0.030, 0.030, 0.030, 0.040, 0.040],
+      pessoal:[null, 0.035, 0.035, 0.035, 0.030, 0.050],
+      cmvmc:  [null, 0.030, 0.030, 0.030, 0.030, 0.030],
     },
     Downside: {
       label: "Downside",
-      desc: "Abrandamento UE, concorrência asiática e incerteza tarifária USA.",
-      vol:    [null, 0.015, 0.015, 0.020, 0.020, 0.025],
-      preco:  [null, 0.015, 0.015, 0.020, 0.020, 0.020],
-      fse:    [null, 0.040, 0.045, 0.050, 0.050, 0.050],
-      pessoal:[null, 0.040, 0.040, 0.035, 0.035, 0.030],
-      cmvmc:  [null, 0.035, 0.040, 0.040, 0.040, 0.040],
+      prob:  0.25,
+      desc: "EUR aprecia vs USD; inflação e juros elevados; retração do consumo; Private Label conservador; retalho tradicional estagna.",
+      // crescimento_volume_vendas override: 2%/2%/2%/1%/1%
+      // crescimento_pvu_vendas override (real): −1.2%/−1.0%/−0.8%/−0.7%/−0.6% → nominal ≈1%
+      // crescimento_fse override (real): 1.8%/2.0%/2.2%/4.2%/4.3% → nominal ≈4%/4%/4%/6%/6%
+      vol:    [null, 0.020, 0.020, 0.020, 0.010, 0.010],
+      preco:  [null, 0.010, 0.010, 0.010, 0.010, 0.010],
+      fse:    [null, 0.040, 0.040, 0.040, 0.060, 0.060],
+      pessoal:[null, 0.035, 0.035, 0.035, 0.030, 0.050],
+      cmvmc:  [null, 0.030, 0.030, 0.030, 0.030, 0.030],
     },
     Stress: {
       label: "Stress",
-      desc: "Choque energético severo, recessão global, colapso hotelaria.",
-      vol:    [null, -0.030, -0.010, 0.015, 0.025, 0.030],
-      preco:  [null, 0.005, 0.010, 0.015, 0.020, 0.025],
-      fse:    [null, 0.120, 0.080, 0.060, 0.050, 0.040],
-      pessoal:[null, 0.050, 0.050, 0.040, 0.040, 0.040],
-      cmvmc:  [null, 0.060, 0.050, 0.040, 0.035, 0.030],
+      prob:  0.05,
+      desc: "Tarifas agressivas USA inviabilizam margens; choque energético severo; colapso da hotelaria; paragem súbita de encomendas Private Label.",
+      // crescimento_volume_vendas override: −2%/0%/1%/2%/2%
+      // crescimento_pvu_vendas override (real): −2.2%/−1.0%/−0.8%/−0.7%/+0.4% → nominal ≈0%/1%/1%/1%/2%
+      // crescimento_fse override (real): 3.7%/2.9%/3.1%/4.2%/4.3% → nominal ≈6%/5%/5%/6%/6%
+      // crescimento_pessoal override (real): 2.7%/2.9%/2.2%/2.3%/3.3% → nominal ≈5%/5%/4%/4%/5%
+      vol:    [null, -0.020,  0.000, 0.010, 0.020, 0.020],
+      preco:  [null,  0.000,  0.010, 0.010, 0.010, 0.020],
+      fse:    [null,  0.060,  0.050, 0.050, 0.056, 0.057],
+      pessoal:[null,  0.050,  0.050, 0.040, 0.040, 0.050],
+      cmvmc:  [null,  0.030,  0.030, 0.030, 0.030, 0.030],
     },
   };
 

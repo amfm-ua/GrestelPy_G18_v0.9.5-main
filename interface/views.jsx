@@ -63,7 +63,7 @@ function DRView({ ctx }) {
         <WaterfallChart items={bridge} height={260} />
       </Panel>
 
-      <Panel title="Demonstração de Resultados" sub="€ · valores anuais">
+      <Panel title="Demonstração dos Resultados" sub="€ · valores anuais">
         <table className="ftable ftable--dense">
           <thead>
             <tr>
@@ -1936,7 +1936,7 @@ function PressupostosView({ ctx }) {
   const sc = GRESTEL.SCENARIOS;
   return (
     <>
-      <Panel title="Cenários · drivers de crescimento" sub="taxas anuais aplicadas a cada rubrica (custom_scenarios.yaml)">
+      <Panel title="Cenários · drivers de crescimento" sub="taxas nominais anuais — loader.py (_SCENARIO_OVERRIDES) + pressupostos/2025 e 2026_2029">
         <table className="ftable">
           <thead>
             <tr>
@@ -1948,7 +1948,13 @@ function PressupostosView({ ctx }) {
           <tbody>
             {Object.entries(sc).map(([k, s]) => (
               <React.Fragment key={k}>
-                <tr className="is-section"><td colSpan={GRESTEL.YEARS.length}><strong>{s.label}</strong> — <span className="muted">{s.desc}</span></td></tr>
+                <tr className="is-section">
+                  <td colSpan={GRESTEL.YEARS.length}>
+                    <strong>{s.label}</strong>
+                    {s.prob != null && <span className="muted" style={{ marginLeft: "0.5rem" }}>({(s.prob * 100).toFixed(0)} %)</span>}
+                    {" — "}<span className="muted">{s.desc}</span>
+                  </td>
+                </tr>
                 {[
                   { key: "vol", label: "Volume" },
                   { key: "preco", label: "Preço" },
