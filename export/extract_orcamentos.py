@@ -43,6 +43,23 @@ def _pct(v, decimais=1):
         return str(v)
 
 
+def _fmt_preco(v):
+    """Preço/custo unitário: 2 a 3 casas decimais (3.ª casa omitida se for nula)."""
+    if v is None or (isinstance(v, float) and np.isnan(v)):
+        return "—"
+    try:
+        s = f"{float(v):,.3f}"
+        if s.endswith("0"):          # 3.ª casa decimal nula → mantém 2 casas
+            s = s[:-1]
+        return s
+    except (TypeError, ValueError):
+        return str(v)
+
+
+# Colunas de preço/custo unitário — exportadas com 2-3 casas decimais
+_PRECO_UNIT_COLS = {"pvu", "cup", "cip_unitario", "pcu"}
+
+
 def _df_to_md(df: pd.DataFrame, float_cols: list[str] | None = None) -> str:
     """Converte DataFrame para tabela Markdown simples."""
     if df is None or df.empty:
@@ -53,11 +70,14 @@ def _df_to_md(df: pd.DataFrame, float_cols: list[str] | None = None) -> str:
     if float_cols:
         for c in float_cols:
             if c in df.columns:
-                df[c] = df[c].apply(lambda x: _fmt(x) if pd.notna(x) else "—")
+                fmt = _fmt_preco if c in _PRECO_UNIT_COLS else _fmt
+                df[c] = df[c].apply(lambda x, f=fmt: f(x) if pd.notna(x) else "—")
     else:
         for c in df.select_dtypes(include="number").columns:
             if c in skip:
                 df[c] = df[c].apply(lambda x: str(int(x)) if pd.notna(x) else "—")
+            elif c in _PRECO_UNIT_COLS:
+                df[c] = df[c].apply(lambda x: _fmt_preco(x) if pd.notna(x) else "—")
             else:
                 df[c] = df[c].apply(lambda x: _fmt(x) if pd.notna(x) else "—")
 
@@ -115,6 +135,14 @@ def s61_vendas(dfs, a, base, sched, MESES):
         cols_show = [c for c in ["ano", "produto", "qty_vendida", "pvu", "vn_prod"]
                      if c in df_p.columns]
         lines.append(_df_to_md(df_p[cols_show]))
+
+    # Vendas anuais por mercadoria
+    df_mc = dfs.get("vendas_mercadoria_anual")
+    if df_mc is not None and not df_mc.empty:
+        lines.append("### Vendas por Mercadoria (anual, €)\n")
+        cols_show = [c for c in ["ano", "mercadoria", "qtd", "pvu", "vn"]
+                     if c in df_mc.columns]
+        lines.append(_df_to_md(df_mc[cols_show]))
 
     # Vendas anuais por mercado
     df_m = dfs.get("vendas_mercado_anual")
