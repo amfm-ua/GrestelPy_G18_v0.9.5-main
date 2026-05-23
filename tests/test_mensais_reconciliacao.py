@@ -251,7 +251,7 @@ class TestEoepSaldos2025(_Base):
         )
         expected_dev = abs(iva_outstanding) if iva_outstanding < 0 else 0.0
 
-        irc_anual_d = {y: float(self.sched.reference_dr["irc"].get(y, 0.0))
+        irc_anual_d = {y: -float(self.dr_anual[self.dr_anual.ano == y]["irc"].iloc[0])
                        for y in (2025, 2026, 2027, 2028, 2029)}
         df_eoep_a = eoep_anual(self.a, self.base, self.sched,
                                irc_anual=irc_anual_d, df_mensal=self.eoep_m)
@@ -278,11 +278,11 @@ class TestEoepSaldos2025(_Base):
         ss_dez  = self.m_map["Dez"]["ss_acumulado_periodo"]
         irs_dez = self.m_map["Dez"].get("irs_acumulado_periodo", 0.0)
         irc_ppc_total = float(self.eoep_m["irc_ppc_mes"].sum())
-        irc_2025 = float(self.sched.reference_dr["irc"].get(2025, 0.0))
+        irc_2025 = -float(self.dr_anual[self.dr_anual.ano == 2025]["irc"].iloc[0])
         irc_residual = max(0.0, irc_2025 - irc_ppc_total)
         expected_cred = iva_credor + ss_dez + irs_dez + irc_residual
 
-        irc_anual_d = {y: float(self.sched.reference_dr["irc"].get(y, 0.0))
+        irc_anual_d = {y: -float(self.dr_anual[self.dr_anual.ano == y]["irc"].iloc[0])
                        for y in (2025, 2026, 2027, 2028, 2029)}
         df_eoep_a = eoep_anual(self.a, self.base, self.sched,
                                irc_anual=irc_anual_d, df_mensal=self.eoep_m)
@@ -309,7 +309,7 @@ class TestEoepSaldos2025(_Base):
     def test_eoep_credor_inclui_irc_residual(self):
         """IRC anual 2025 > IRC PPC total — o residual entra no eoep_credor."""
         irc_ppc_total = float(self.eoep_m["irc_ppc_mes"].sum())
-        irc_anual = float(self.sched.reference_dr["irc"][2025])
+        irc_anual = -float(self.dr_anual[self.dr_anual.ano == 2025]["irc"].iloc[0])
         self.assertGreater(irc_anual, irc_ppc_total,
                            msg="IRC anual deve exceder os pagamentos por conta")
 

@@ -480,10 +480,6 @@ class Schedules:
         return self.raw["eoep_saldos"]
 
     @property
-    def reference_dr(self):
-        return self.raw["reference_dr"]
-
-    @property
     def reference_balanco(self):
         return self.raw["reference_balanco"]
 
