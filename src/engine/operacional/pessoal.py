@@ -33,7 +33,7 @@ EVOLUÇÃO TEMPORAL:
     - Total Pessoal: €X (auditado)
     - Headcount (Nº de pessoas): N
 
-  2025: Período Parcial + Crescimento (Janeiro-Setembro, 9 meses)
+  2025: Ano Completo + Crescimento (Janeiro-Dezembro, 12 meses)
     - Custo Médio 2024: X / N
     - Custo Médio 2025: Custo_2024 × (1 + taxa_inflação_2025)
       (tipicamente 2-3%, assinado em YAML)

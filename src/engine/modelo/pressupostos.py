@@ -25,7 +25,7 @@ def _cresc_section(id_: str, label: str, raw_key: str, raw: dict) -> dict:
     """Gera secção de crescimento a partir de um bloco de driver anual."""
     bloco = raw.get(raw_key, {}) or {}
     val_25 = float(bloco.get("base_2025", bloco.get("annual_2025", 0.0)))
-    items = [_item("2025 (base 9 meses)", _pct(val_25), "%")]
+    items = [_item("2025 (base 12 meses)", _pct(val_25), "%")]
     for y in YEARS[1:]:
         items.append(_item(str(y), _pct(bloco.get(y, 0.0)), "%"))
     return {"id": id_, "label": label, "items": items}
@@ -62,7 +62,7 @@ def build_pressupostos_summary(
             _item("Hub Logístico incluído", hub_on),
             _item("Ecogres incluído", ecogres_on),
             _item("Horizonte de análise", "2024 – 2029"),
-            _item("2025 (período parcial)", "Jan – Set (9 meses)"),
+            _item("2025 (ano completo)", "Jan – Dez (12 meses)"),
         ],
     })
 

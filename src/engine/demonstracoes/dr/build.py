@@ -63,9 +63,9 @@ def build_dr(
     if df_total is None:
         df_total = vendas.resumo_anual(df_prod, df_merc)
 
-    # FATOR DE ESCALA 2025: O ano 2025 tem apenas 9 meses (jan-set)
-    # Logo, o crescimento de vendas de 2024 para 2025 é reduzido proporcionalmente
-    # Este factor é usado para escalar FSE, pessoal, etc. para o período parcial
+    # FATOR DE ESCALA 2025: rácio VN_2025 / VN_2024; usado para escalar a componente
+    # variável do FSE (subcontratos, energia, transportes) em proporção à atividade.
+    # A componente fixa do FSE escala por meses_2025/12 (=1.0 para ano completo).
     vn_2024 = float(df_total[df_total.ano == 2024]["vn_total"].iloc[0])
     vn_2025 = float(df_total[df_total.ano == 2025]["vn_total"].iloc[0])
     factor_2025 = vn_2025 / vn_2024 if vn_2024 else 1.0
@@ -73,7 +73,7 @@ def build_dr(
     # ===== ETAPA 2: CÁLCULO DE FSE (Fornecimentos e Serviços Externos) =====
     # FSE: custos operacionais variáveis (eletricidade, água, comunicações, limpeza, etc.)
     # Cresce com base + crescimento definido em assumptions (redução custo, eficiência, etc.)
-    # O factor_2025 ajusta para o período parcial (9 meses)
+    # O factor_2025 escala a componente variável; a fixa usa meses_2025/12 (=1.0 em ano completo)
     df_fse = fse.fse_anual(a, base, factor_2025)
 
     # FSE DETALHADO: desagregação por rubrica (categoria)

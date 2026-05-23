@@ -42,10 +42,10 @@ ESTRUTURA POR PRODUTO:
       - EXT (Resto do Mundo): maior risco mas potencial de crescimento
     * Sazonalidade: pesos de venda por mês (ex: maior venda em verão)
 
-PERÍODO 2025 (Parcial - Janeiro a Setembro):
-  - Contém dados mensais (por mês de janeiro a setembro)
-  - Permite análise de seasonalidade e cash flow management
-  - Período: 9 meses (não 12), facto crítico para scaling de custos
+PERÍODO 2025 (Completo - Janeiro a Dezembro):
+  - Contém dados mensais desagregados por sazonalidade (12 meses)
+  - Permite análise de sazonalidade e cash flow management
+  - VN calculado para o ano completo, consistente com custos e FSE
 
 PERÍODOS 2026-2029 (Completos - Janeiro a Dezembro):
   - Dados agregados por ano (sem desagregação mensal)

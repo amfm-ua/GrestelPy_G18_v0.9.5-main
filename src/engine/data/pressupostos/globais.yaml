@@ -69,7 +69,7 @@ distribuicao_resultados:
 # Crescimento anual dos rendimentos financeiros (juros de depósitos e aplicações de tesouraria)
 rendimentos_financeiros_crescimento: 0.025
 
-# Nota: 2025 é exercício parcial de 9 meses (janeiro-setembro) — meses_exercicio_2025: 9
+# Nota: 2025 é tratado como exercício completo de 12 meses para efeitos dos mapas financeiros.
 
 prazos:
   PMR_dias: 45
@@ -82,7 +82,7 @@ prazos:
 fse:
   pct_producao: 0.4
   pct_nao_producao: 0.6
-  meses_2025: 9       # meses do exercício parcial 2025; o FSE fixo (pct_nao_producao) é escalado por meses_2025/12
+  meses_2025: 12      # 2025 tratado como ano completo; fator_tempo_fixo = 1.0 (sem truncagem do FSE fixo)
 
 pessoal:
   custo_total_2024_auditado: 14371357.7

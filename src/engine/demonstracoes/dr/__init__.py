@@ -48,7 +48,7 @@ ESTRUTURA DA DR (Fluxo de Cálculo):
 
 LÓGICA FINANCEIRA CRÍTICA:
   - 2024: dados reais (input de Base2024), não projetado
-  - 2025: período PARCIAL (janeiro-setembro, 9 meses) — vendas/custos escalados 9/12
+  - 2025: ano completo (12 meses) — VN e custos calculados para o período integral
   - 2026-2029: períodos completos (12 meses)
   - Crescimentos cumulativos aplicados ano a ano
   - Imparidades crescem com saldo de clientes (indica risco de crédito)

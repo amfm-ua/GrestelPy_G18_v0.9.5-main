@@ -7,7 +7,7 @@
 #     a administração. Incumprimento ativa cláusulas de evento de default.
 #
 #   Tabela 9 — ALAVANCAS 2025 (targets de curto prazo para o primeiro exercício)
-#     São ambições operacionais para 2025 (exercício parcial 9 meses: Jan-Set).
+#     São ambições operacionais para 2025 (ano completo: Jan-Dez).
 #     Não são covenants — o seu incumprimento não desencadeia obrigações contratuais,
 #     mas sinaliza desvio na execução estratégica.
 #
@@ -36,7 +36,7 @@ objetivos:
     # Tabela 8, Obj. 1 — Covenant implícito de crescimento aprovado pelo BPI.
     # Grestel precisa crescer ≥6% ao ano para atingir o VN-alvo de ~46 M€ até 2027
     # (CAGR 2024-2027 ≈ 6,7% sobre base de 37,9 M€ auditado R&C 2024).
-    # Exercício 2025 é parcial (9 meses Jan-Set): cresc_vn compara VN 2025 anualizado vs. 2024.
+    # Exercício 2025 é ano completo (12 meses): cresc_vn compara VN 2025 vs. VN 2024 diretamente.
     descricao: >-
       Crescer VN ≥6% ao ano entre 2025-2027, atingindo ~46 M€ em 2027 (+20,3% vs.
       base de 37,9 M€ em 2024). Combina crescimento de volume (mix de produto e mercado)
@@ -176,7 +176,7 @@ objetivos:
   # TABELA 9 — ALAVANCAS OPERACIONAIS 2025
   # Objetivos de curto prazo que suportam a trajetória estrutural.
   # Fonte: Manual do Estudante PEF — Momento M6, secção 3.3.
-  # Exercício 2025 = 9 meses (Jan-Set); os rácios são anualizados.
+  # Exercício 2025 = 12 meses (Jan-Dez); rácios calculados para o ano completo.
   # ══════════════════════════════════════════════════════════════
 
   - id: cmvmc_aspiracao_2025
@@ -258,24 +258,24 @@ objetivos:
     categoria: financeira
     # Tabela 9, Obj. 5 — Controlo do custo da dívida em 2025.
     # Juros 2024 auditados (DR): 528 161 € (BPI 4,15% + locações 3,5% + IAPMEI 0%).
-    # 2025 é exercício de 9 meses (Jan-Set): juros core ≈ 528k × (9/12) ≈ 396k€.
+    # 2025 é ano completo (12 meses): juros core ≈ 528k€ com benefício de amortização BPI.
     # TRATAMENTO CRÍTICO DO CRÉDITO HUB:
     #   O novo crédito Hub (3 M€ @ 4,15%, contratado em Jan-2025) tem juros do período
     #   de construção CAPITALIZADOS no AFT (NCRF 10 — juros capitalizáveis: true).
     #   Os juros capitalizados NÃO aparecem na DR de 2025 como gasto financeiro —
     #   aparecem como adição ao custo do ativo (AFT Hub) depreciado a partir de 2026.
     #   Logo: o juros_abs do tracker de 2025 NÃO inclui juros do crédito Hub.
-    # Projeção: juros 2025 ≈ BPI(111k€/mês × 9 × 4,15%/12) + locações(31k/mês × 9 × 3,5%) ≈ 392k€.
+    # Projeção: juros 2025 ≈ BPI(111k€/mês × 12 × 4,15%/12) + locações(31k/mês × 12 × 3,5%) ≈ 525k€.
     descricao: >-
-      Manter gastos de financiamento ≤400k€ em 2025 (exercício 9 meses Jan-Set).
-      Juros 2024 auditados: 528k€; projeção 2025: ~392k€ (9/12 × base + amortização BPI).
+      Manter gastos de financiamento ≤530k€ em 2025 (ano completo Jan-Dez).
+      Juros 2024 auditados: 528k€; projeção 2025: ~525k€ (12 meses, com amortização BPI progressiva).
       Juros do crédito Hub (3 M€ @ 4,15%) são CAPITALIZADOS no AFT em 2025 (NCRF 10)
       e não aparecem na DR — passam a gasto de depreciação a partir de 2026.
       Risco: subida da Euribor 3M acima de 2,90% (base Mar-2025) aumenta juros variáveis BPI.
     kpi_field: juros_abs
     fonte: kpis
     anos_alvo: [2025]
-    alvo: 400000
+    alvo: 530000
     operador: lte
     unidade: EUR
 

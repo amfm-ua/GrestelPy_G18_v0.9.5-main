@@ -60,7 +60,7 @@ from .yaml_io import (
 # Os overrides são mesclados com os dados base usando _deep_update (merge recursivo).
 #
 # NOTAÇÃO:
-#   - "base_2025": refere-se ao período janeiro-setembro 2025 (9 meses)
+#   - "base_2025": refere-se ao período completo 2025 (12 meses)
 #   - Anos 2026-2029: períodos completos (12 meses por ano)
 #
 # CENÁRIO UPSIDE (Otimista):

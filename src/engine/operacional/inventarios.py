@@ -66,7 +66,7 @@ VARIAÇÕES ESPERADAS:
 
   - Inventário cresce com CMVMC (mais produção = mais stock)
   - Crescimento não linear: DMI constante + CMVMC crescent = stock crescente
-  - 2025 (período parcial): ajuste proporcional para 9 meses
+  - 2025 (ano completo): saldo calculado com base no CMVMC de 12 meses
   - Dinâmica positiva: crescimento de vendas → crescimento de stock necessário
   - Dinâmica negativa: redução de DMI → menor necessidade de stock
 
