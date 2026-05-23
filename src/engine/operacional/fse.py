@@ -283,7 +283,7 @@ def fse_detalhe_anual(
         DataFrame com colunas: ano, rubrica, valor.
     """
     g_fse_2025 = _cresc_fse_2025_efetivo(a)
-    meses_2025 = int(a.fse_params.get("meses_2025", 9))
+    meses_2025 = int(a.fse_params.get("meses_2025", 12))
     fator_tempo_fixo = meses_2025 / 12.0
 
     # Fallback global para rubricas sem pct_variavel no YAML

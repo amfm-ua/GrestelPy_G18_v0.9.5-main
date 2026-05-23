@@ -4,12 +4,13 @@
 #   + WMS integrado + Digital Twin + Solar 200 kWp — interligados via MES/WMS
 #
 # ┌─────────────────────────────────────────────────────────────────────┐
-# │  JUSTIFICAÇÃO DO CAPEX ELEGÍVEL DE 5 955 k€                         │
-# │  CAPEX / ATL_operacional = 5 955 k€ / 39 570 k€ = 15,05 % ≥ 15 %  │
-# │  (ATL operacional exclui EOEP_devedor 688,5 k€ — NCRF 15 §9)        │
-# │  Exclui 45 k€ de honorários afundados (sunk cost pré-decisão)       │
-# │  O projeto integra as fases 1 e 2 numa única decisão de investimento │
-# │  para cumprir o limiar mínimo de relevância estratégica do M6.       │
+# │  JUSTIFICAÇÃO DO CAPEX ELEGÍVEL DE 5 850 k€ (corrigido NCRF 6)     │
+# │  CAPEX / ATL_operacional = 5 850 k€ / 39 570 k€ = 14,78 %         │
+# │  (ATL operacional exclui EOEP_devedor 688,5 k€ — NCRF 15 §9)       │
+# │  Exclui 45 k€ honorários afundados (sunk cost — NCRF 7 §7)         │
+# │  Exclui 105 k€ formação inicial (gasto do exercício — NCRF 6 §21)  │
+# │  O limiar 15 % é critério de relevância estratégica M6, não         │
+# │  condição legal de elegibilidade RFAI (CFI art. 22.º-23.º).        │
 # └─────────────────────────────────────────────────────────────────────┘
 #
 # CAPEX por componente (fases 1+2 integradas):
@@ -22,8 +23,9 @@
 #   Estações pick-and-pack + Box-on-Demand                             600 k€ –  850 k€
 #   WMS + MES + Digital Twin (integrado em vez de deferido)            400 k€ –  600 k€
 #   Solar 200 kWp + bateria 50 kWh (escala 1→2)                        220 k€ –  320 k€
-#   Integração / formação (escopo ampliado)                             250 k€ –  400 k€
-#   Total adoptado (fases 1+2)                                       6 000 k€
+#   Integração de software (65 % dos 300 k€ iniciais — capitalizável)  195 k€  ← pool software_integracao
+#   Formação inicial (35 % dos 300 k€ — gasto 2025, NCRF 6 §21)       105 k€  ← gastos_pre_operacionais
+#   Total CAPEX capitalizável (fases 1+2)                            5 850 k€
 
 incluir_hub: true
 
@@ -34,8 +36,9 @@ incluir_hub: true
 # │  (−) EOEP_devedor (crédito fiscal, não ativo operac.):    688 520 €            │
 # │  ATL operacional:                                      39 570 244 €  → 39 570 k│
 # │                                                                                 │
-# │  CAPEX elegível / ATL_operacional = 5 955 k€ / 39 570 k€ = 15,05 % ≥ 15 % ✓  │
-# │  (exclui 45 k€ honorários afundados — sunk cost pré-decisão, NCRF 7 §7)       │
+# │  CAPEX capitalizável / ATL_operacional = 5 850 k€ / 39 570 k€ = 14,78 %      │
+# │  (exclui 45 k€ sunk costs NCRF 7 §7 e 105 k€ formação NCRF 6 §21)            │
+# │  Limiar 15 % é critério estratégico M6, não condição RFAI (CFI art. 22.º)    │
 # │                                                                                 │
 # │  Nota: excluir o EOEP_devedor (Estado e outros entes públicos) é prática       │
 # │  aceite porque representa timing fiscal (IVA e IRC a reembolsar), não          │
@@ -44,11 +47,11 @@ incluir_hub: true
 
 projeto_hub:
   capex:
-    base: 5955000   # CAPEX elegível: exclui 45 k€ honorários afundados (sunk cost pré-decisão)
+    base: 5850000   # CAPEX capitalizável: exclui 45 k€ honorários afundados (sunk cost) e 105 k€ formação (NCRF 6 §21)
     cronograma:
-      2025: 2955000  # 49,6 % — obras civis + reabilitação G1 + cais + infra eléctrica/PV (líq. 45 k€ afundados)
-      2026: 3000000  # 50,4 % — VLMs×6 + AMRs×5 + WMS + Digital Twin + Box-on-Demand + Solar
-    # Depreciação por pool de ativo (DR 25/2009) — montantes elegíveis somam ao base (5 955 k€)
+      2025: 2850000  # 48,7 % — obras civis + reabilitação G1 + cais + infra eléctrica/PV + software_integracao (excl. formação 105 k€)
+      2026: 3000000  # 51,3 % — VLMs×6 + AMRs×5 + WMS + Digital Twin + Box-on-Demand + Solar
+    # Depreciação por pool de ativo (DR 25/2009) — montantes capitalizáveis somam ao base (5 850 k€)
     # Pools com excluir_analise_incremental: true são filtrados pelo engine (sunk costs).
     # Nota: novos pools (box_on_demand, energia_solar) são lidos dinamicamente
     #       pelo engine via pools.values() — nenhuma alteração de código necessária.
@@ -74,9 +77,9 @@ projeto_hub:
         vida_util_anos: 99        # dummy — irrelevante; pool excluído da análise incremental
         capex_elegivel_rfai: false
         excluir_analise_incremental: true  # filtra depreciação, VLQ e outflows de FCF
-      integracao_formacao:
-        descricao: "Integração de sistemas e formação inicial (escopo ampliado fases 1+2)"
-        montante: 300000
+      software_integracao:
+        descricao: "Integração de sistemas (WMS/MES — configuração, personalização, testes) — capitalizável NCRF 6 §57"
+        montante: 195000          # 65 % dos 300 k€ originais; 35 % (105 k€) são formação → gastos_pre_operacionais
         ano_inicio: 2025
         taxa_depreciacao: 0.33    # vida útil 3 anos (OAI — outros ativos intangíveis)
         vida_util_anos: 3
@@ -110,8 +113,22 @@ projeto_hub:
         ano_inicio: 2026
         taxa_depreciacao: 0.05    # vida útil 20 anos (DGEG: 20-25 a)
         vida_util_anos: 20
-    # Verificação (elegíveis): 2 535 + 120 + 300 + 1 305 + 625 + 450 + 350 + 270 = 5 955 k€
-    # Honorários afundados (45 k€) excluídos — sunk cost, não entra no CAPEX elegível
+    # Verificação (capitalizáveis): 2 535 + 120 + 195 + 1 305 + 625 + 450 + 350 + 270 = 5 850 k€
+    # Honorários afundados (45 k€) excluídos — sunk cost (NCRF 7 §7)
+    # Formação inicial (105 k€) excluída — gasto do exercício 2025 (NCRF 6 §21) → gastos_pre_operacionais
+
+  # -----------------------------------------------------------------------
+  # GASTOS PRÉ-OPERACIONAIS NÃO CAPITALIZÁVEIS (NCRF 6 §21)
+  # -----------------------------------------------------------------------
+  # Custos de formação não satisfazem os critérios de reconhecimento de
+  # activo intangível: não existem recursos separáveis e controláveis com
+  # benefícios económicos futuros atribuíveis à entidade (NCRF 6 §21 e §57).
+  # Reconhecidos como gasto operacional (FSE) no exercício em que ocorrem.
+  gastos_pre_operacionais:
+    formacao_inicial:
+      descricao: "Formação de utilizadores WMS/MES — gasto do exercício 2025 (NCRF 6 §21)"
+      montante: 105000    # 35 % dos 300 k€ originais (formação pura, não integração de software)
+      ano: 2025
 
     # -----------------------------------------------------------------------
     # CUSTO DE OPORTUNIDADE DO TERRENO (UC API, Doc 3) — fora dos pools acima
@@ -340,7 +357,7 @@ projeto_hub:
     #   • Carry-forward: saldo não utilizado transportável até 10 exercícios
     aplicar: true
     taxa: 0.10
-    capex_elegivel: 5955000
+    capex_elegivel: 5850000   # corrigido: exclui 105 k€ de formação não capitalizável (NCRF 6 §21)
     limite_irc_pct: 0.50
     carry_forward_anos: 10
 
@@ -364,7 +381,7 @@ projeto_hub:
   #   honorarios_afundados: excluídos — sunk cost, VLC = 0 por definição
   #
   # Totalmente amortizados antes de 2035 → VLC = 0:
-  #   integracao_formacao (33 %, 3 a), vlm (12,5 %, 8 a), robotica_amr (20 %, 5 a),
+  #   software_integracao (33 %, 3 a), vlm (12,5 %, 8 a), robotica_amr (20 %, 5 a),
   #   wms_software (25 %, 4 a), box_on_demand (20 %, 5 a)
   valor_residual:
     ano_referencia: 2035

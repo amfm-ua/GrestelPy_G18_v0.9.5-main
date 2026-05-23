@@ -231,21 +231,31 @@ objetivos:
   - id: pmp_2025
     nome: Prazo Médio de Pagamento
     categoria: operacional
-    # Tabela 9, Obj. 4 — Compliance com Diretiva 2011/7/UE + relações fornecimento.
-    # PMP 2024 (de globais.yaml prazos.PMP_Inventarios_dias): 63 dias.
-    # A Diretiva 2011/7/UE impõe ≤60 dias B2B; a Grestel visa ≤55 dias com margem
-    # de segurança de 5 dias para evitar incumprimento regulatório.
-    # Racional: embora PMP mais elevado liberte caixa a curto prazo, a Grestel prioriza:
-    #   (a) compliance regulatório (risco de multas e publicidade negativa);
-    #   (b) relações estratégicas com fornecedores de pasta cerâmica e vidrados
-    #       (poder de negociação em prazos de entrega e condições de qualidade).
-    # Escopo restrito a 2025 (alavanca de curto prazo); 2026+ usa PMP normalizado.
+    # Tabela 9, Obj. 4 — Renegociação de PMP com fornecedores + compliance Diretiva 2011/7/UE.
+    #
+    # HISTÓRICO vs. PROJEÇÃO:
+    #   PMP 2024 real: 63 dias (saldo auditado R&C 2024 — base.balanco["Fornecedores"]).
+    #   O modelo usa globais.yaml prazos.PMP_Inventarios_dias = 55 dias para 2025+,
+    #   reflectindo o objetivo estratégico de renegociação com os fornecedores.
+    #   2024 usa sempre o saldo auditado directamente (não é afectado por este parâmetro).
+    #
+    # RACIONAL DA RENEGOCIAÇÃO:
+    #   (a) Compliance regulatório: Diretiva 2011/7/UE impõe ≤60 dias B2B;
+    #       a Grestel visa ≤55 dias com 5 dias de margem de segurança.
+    #   (b) Relações estratégicas: fornecedores de pasta cerâmica e vidrados com PMP
+    #       reduzido ganham confiança → melhores condições de qualidade e entrega JIT.
+    #   (c) Preparação para o Hub: entregas just-in-time ao hub exigem fornecedores
+    #       comprometidos com prazos — o PMP mais curto é a contrapartida da Grestel.
+    #
+    # CUSTO DE OPORTUNIDADE:
+    #   8 dias × ~40 M€ CMVMC / 365 × 1,23 IVA ≈ 1,1 M€ extra de fundo de maneio
+    #   vs. manter 63 dias. Este custo está reflectido na projeção de NFM 2025+.
     descricao: >-
-      Reduzir PMP para ≤55 dias em 2025, de 63 dias em 2024. Cumpre a Diretiva 2011/7/UE
-      (B2B ≤60 dias) com 5 dias de margem. Prioridade estratégica: manter relações de
-      fornecimento estáveis (pasta cerâmica, vidrados, esmaltes) para garantir qualidade
-      e entregas just-in-time para o Hub. Custo de oportunidade do PMP mais curto:
-      ~600k€ de fundo de maneio extra (8 dias × 37,9 M€ / 365 × 1,23 IVA).
+      Renegociar PMP para ≤55 dias em 2025 (vs. 63 dias histórico 2024), cumprindo a
+      Diretiva 2011/7/UE (B2B ≤60 dias) com 5 dias de margem. Objetivo estratégico:
+      fornecedores de pasta cerâmica e vidrados pagos mais cedo em troca de condições
+      JIT para o Hub. Custo de oportunidade: ~1,1 M€ de NFM adicional
+      (8 dias × ~40 M€ CMVMC / 365 × 1,23 IVA) — reflectido nas projeções do modelo.
     kpi_field: pmp_dias
     fonte: kpis
     anos_alvo: [2025]

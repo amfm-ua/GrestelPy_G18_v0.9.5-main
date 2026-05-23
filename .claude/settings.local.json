@@ -12,7 +12,9 @@
       "Bash(.venv/Scripts/python -m pytest tests/ -q --tb=short -rfE)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(dir \"c:\\\\Users\\\\amfmn\\\\OneDrive - Universidade de Aveiro\\\\PEF\\\\M6\\\\M6_G18_2605XX\\\\GrestelPy_G18_v0.9.5-main\\\\export\" /b)"
+      "Bash(dir \"c:\\\\Users\\\\amfmn\\\\OneDrive - Universidade de Aveiro\\\\PEF\\\\M6\\\\M6_G18_2605XX\\\\GrestelPy_G18_v0.9.5-main\\\\export\" /b)",
+      "Bash(python/python.exe -m pytest tests/ -q --tb=no)",
+      "Bash(python/python.exe -c ' *)"
     ]
   }
 }

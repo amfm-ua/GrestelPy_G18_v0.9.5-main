@@ -271,6 +271,15 @@ def hub_dr_impact(
     ben_pontual = proj["beneficios_pontuais"]
     inicio = int(proj["ano_inicio_beneficios"])
 
+    # Gastos pré-operacionais não capitalizáveis (NCRF 6 §21): formação inicial.
+    # Reconhecidos como gasto de FSE no ano em que ocorrem, antes do arranque operacional.
+    gastos_preop: dict[int, float] = {}
+    for gasto in proj.get("gastos_pre_operacionais", {}).values():
+        ano_g = int(gasto.get("ano", 0))
+        val_g = float(gasto.get("montante", 0.0))
+        if ano_g and val_g:
+            gastos_preop[ano_g] = gastos_preop.get(ano_g, 0.0) + val_g
+
     poupanca_op = float(ben["poupanca_operacional"])
     reducao_quebras = float(ben["reducao_quebras"])
 
@@ -316,19 +325,21 @@ def hub_dr_impact(
         contrib_com = vn_inc - cmvmc_inc  # margem bruta incremental B2C
 
         if y < inicio:
+            preop_y = gastos_preop.get(y, 0.0)
             result[y] = {
                 "pessoal_reducao": 0.0,
                 "fse_reducao": 0.0,
                 "cmvmc_reducao": 0.0,
                 "fse_opex_hub": 0.0,
+                "gastos_preop_hub": preop_y,  # formação: gasto do exercício NCRF 6 §21
                 "outros_rend_subsidio": 0.0,
                 "depreciacao_hub": 0.0,
                 "inventario_libertado": 0.0,
                 "vn_incremental": vn_inc,
                 "cmvmc_incremental": cmvmc_inc,
-                "beneficio_liquido": contrib_com,
-                "ebitda_impact": contrib_com,
-                "ebit_impact": contrib_com,
+                "beneficio_liquido": contrib_com - preop_y,
+                "ebitda_impact": contrib_com - preop_y,
+                "ebit_impact": contrib_com - preop_y,
             }
             continue
 
@@ -362,6 +373,7 @@ def hub_dr_impact(
             "fse_reducao": fse_red,
             "cmvmc_reducao": cmvmc_red,
             "fse_opex_hub": fse_opex,
+            "gastos_preop_hub": 0.0,
             "outros_rend_subsidio": subsidio_y,
             "depreciacao_hub": dep_hub,
             "inventario_libertado": inventario,

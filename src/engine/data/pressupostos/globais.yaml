@@ -55,6 +55,11 @@ caixa:
   minima_pct_vn: 0.013   # 1.3% VN → ≈ 527 k€ em 2025, ≈ 691 k€ em 2029
   maxima_pct_vn: 0.086   # 8.6% VN → ≈ 3.48 M€ em 2025, ≈ 4.57 M€ em 2029
 
+  # Taxa de juro da linha de crédito de conta corrente (overnight/revolving CP).
+  # Euribor 3m (~3,5 %) + spread bancário médio PME (~2 pp) = ~5,5 % (BdP, Jan 2025).
+  # Utilizada em statements.py para retroalimentar os juros da linha quando activa.
+  taxa_juro_cc_anual: 0.055
+
   # Floor para o Orçamento de Tesouraria Mensal (Mapa 6.11).
   # Valor 0: o saldo mensal reflete os fluxos reais; quando negativo, a linha de crédito
   # de curto prazo é acionada automaticamente (plug contabilístico). Permite identificar
@@ -73,7 +78,12 @@ rendimentos_financeiros_crescimento: 0.025
 
 prazos:
   PMR_dias: 45
-  PMP_Inventarios_dias: 63
+  # PMP 2024 histórico: 63 dias (saldo auditado R&C 2024; usado via base.balanco diretamente).
+  # Objetivo estratégico 2025+: renegociar PMP com fornecedores para ≤55 dias,
+  # cumprindo a Diretiva 2011/7/UE (B2B ≤60 dias) com 5 dias de margem.
+  # Custo de oportunidade: ~1,1 M€ extra de fundo de maneio vs. 63 dias
+  # (8 dias × ~40 M€ CMVMC / 365 × 1,23 IVA). Ver pmp_2025 em smart_objetivos.yaml.
+  PMP_Inventarios_dias: 55
   DMI_PA_dias: 160
   DMI_MP_dias: 160
   DMI_Mercadorias_dias: 60

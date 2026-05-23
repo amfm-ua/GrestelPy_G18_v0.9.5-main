@@ -115,7 +115,8 @@ GET  /api/export/excel                 → exportação Excel (.xlsx) com todas 
 src/engine/data/
 ├── historico/2024/          ← dados reais 2024 (imutáveis)
 ├── pressupostos/
-│   ├── globais.yaml         ← fiscal, prazos, pessoal, caixa, rend. financeiros
+│   ├── globais.yaml         ← fiscal, prazos (PMR 45d / PMP 55d 2025+), pessoal, caixa, rend. financeiros
+│   │                           PMP 2024 histórico: 63d (saldo auditado); 55d = objetivo renegociação fornecedores
 │   ├── 2025/                ← macro, vendas, custos, mix mensais
 │   └── 2026_2029/           ← macro, vendas, custos anuais
 ├── master/                  ← catálogos estáveis (produtos, mercadorias, FSE)

@@ -86,6 +86,30 @@ def build_statements(
         df_eoep_mensal=df_eoep_mensal,
         df_prod=df_prod, df_merc=df_merc, df_total=df_total,
     )
+
+    # Correcção C3 — juros da linha de crédito CP (NCRF 27 §11):
+    # A linha de crédito CP é um passivo financeiro que implica gastos financeiros.
+    # Uma iteração é suficiente: o impacto no surplus é ~RL×(1−t) que altera a
+    # linha_cp em <1 %, tornando a segunda iteração desprezível.
+    taxa_juro_cc = float(a.raw.get("caixa", {}).get("taxa_juro_cc_anual", 0.0))
+    if taxa_juro_cc > 0.0:
+        juros_linha_cp: dict[int, float] = {}
+        for _, row in df_balanco.iterrows():
+            lc = float(row["linha_credito_cp"])
+            if lc > 0.0:
+                juros_linha_cp[int(row["ano"])] = lc * taxa_juro_cc
+        if juros_linha_cp:
+            df_dr = build_dr(
+                a, base, sched,
+                df_prod=df_prod, df_merc=df_merc, df_total=df_total,
+                juros_linha_cp=juros_linha_cp,
+            )
+            df_balanco = build_balanco(
+                a, base, sched, df_dr,
+                df_eoep_mensal=df_eoep_mensal,
+                df_prod=df_prod, df_merc=df_merc, df_total=df_total,
+            )
+
     df_dfc = build_dfc(a, df_dr, df_balanco, sched, base)
 
     return {

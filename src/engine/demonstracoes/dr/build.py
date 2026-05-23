@@ -24,6 +24,7 @@ def build_dr(
     df_prod: "pd.DataFrame | None" = None,
     df_merc: "pd.DataFrame | None" = None,
     df_total: "pd.DataFrame | None" = None,
+    juros_linha_cp: "dict[int, float] | None" = None,
 ) -> pd.DataFrame:
     """
     Constrói a Demonstração de Resultados Completa (2024-2029).
@@ -245,6 +246,8 @@ def build_dr(
         c_base = float(df_cmvmc[df_cmvmc.ano == y]["cmvmc"].iloc[0])
         d = float(df_inv[df_inv.ano == y]["total_dep_amort"].iloc[0])
         j = float(df_fin[df_fin.ano == y]["juros_total"].iloc[0])
+        j_linha = juros_linha_cp.get(y, 0.0) if juros_linha_cp else 0.0
+        j = j + j_linha
 
         inv_ef = float(df_inv_st[df_inv_st.ano == y]["inventarios"].iloc[0])
         inv_ei = float(df_inv_st[df_inv_st.ano == y - 1]["inventarios"].iloc[0])
@@ -265,6 +268,7 @@ def build_dr(
         hub_fse_red = 0.0
         hub_cmvmc_red = 0.0
         hub_fse_opex = 0.0
+        hub_gastos_preop = 0.0
         hub_vn_inc = 0.0
         hub_cmvmc_inc = 0.0
         hub_outros_rend = 0.0
@@ -275,6 +279,7 @@ def build_dr(
             hub_fse_red = h.get("fse_reducao", 0.0)
             hub_cmvmc_red = h.get("cmvmc_reducao", 0.0)
             hub_fse_opex = h.get("fse_opex_hub", 0.0)
+            hub_gastos_preop = h.get("gastos_preop_hub", 0.0)
             hub_vn_inc = h.get("vn_incremental", 0.0)
             hub_cmvmc_inc = h.get("cmvmc_incremental", 0.0)
             hub_outros_rend = h.get("outros_rend_subsidio", 0.0)
@@ -285,6 +290,9 @@ def build_dr(
         p = p_base - hub_pessoal_red
         f = f_adj - hub_fse_red + hub_fse_opex
         c = c_adj - hub_cmvmc_red - eco_mpsc_red.get(y, 0.0) + hub_cmvmc_inc
+        # hub_gastos_preop: gastos pré-operacionais não capitalizáveis (formação NCRF 6 §21)
+        # Adicionados a outros_gastos para não contaminar a reconciliação FSE/detalhe.
+        out_gast = out_gast + hub_gastos_preop
 
         ebitda = vn + var_inv + out_rend - c - f - p - imp - out_gast
         ebit = ebitda - d
@@ -313,12 +321,14 @@ def build_dr(
                 "depreciacoes": -d,
                 "ebit": ebit,
                 "juros": -j,
+                "juros_linha_cp": -j_linha,
                 "rend_financeiros": rend_fin,
                 "rai": rai,
                 "hub_pessoal_reducao": hub_pessoal_red,
                 "hub_fse_reducao": hub_fse_red,
                 "hub_cmvmc_reducao": hub_cmvmc_red,
                 "hub_fse_opex": hub_fse_opex,
+                "hub_gastos_preop": hub_gastos_preop,
                 "hub_vn_incremental": hub_vn_inc,
                 "hub_cmvmc_incremental": hub_cmvmc_inc,
                 "hub_outros_rend_subsidio": hub_outros_rend,

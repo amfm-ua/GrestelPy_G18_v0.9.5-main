@@ -581,7 +581,7 @@ def main():
     doc.write(f"**Empresa:** Costa Nova — Grestel, S.A.  \n")
     doc.write(f"**Cenário:** Base  \n")
     doc.write(f"**Gerado em:** {date.today().isoformat()}  \n")
-    doc.write(f"**Período de projeção:** 2024–2029 (2025: Jan–Set, 9 meses)  \n\n")
+    doc.write(f"**Período de projeção:** 2024–2029 (2025: Jan–Dez, 12 meses)  \n\n")
     doc.write("---\n")
 
     for num, title, fn in secoes:

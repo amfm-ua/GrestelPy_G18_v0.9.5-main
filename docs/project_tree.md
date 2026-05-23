@@ -88,6 +88,9 @@ GrestelPy_G18/
 │       │   ├── pressupostos/
 │       │   │   ├── globais.yaml          ← Fiscal (IVA/IRC/SS/TSU), prazos, caixa, distribuição,
 │       │   │   │                             ESG, rendimentos_financeiros_crescimento (2,5%/a)
+│       │   │   │                             PMR_dias: 45 · PMP_Inventarios_dias: 55
+│       │   │   │                             (2025+, objetivo renegociação fornecedores;
+│       │   │   │                              2024 usa saldo auditado R&C 2024 diretamente)
 │       │   │   ├── investimento.yaml     ← CAPEX BAU Grestel, taxas de depreciação
 │       │   │   ├── 2025/
 │       │   │   │   ├── macro.yaml        ← Inflação mensal 2025, EUR/USD mensal 2025

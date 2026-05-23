@@ -237,6 +237,7 @@ Retorna uma linha por objetivo × ano com status de cumprimento calculado a part
 | `ebitda_margin_2025` | `kpis.margem_ebitda` | ≥ 19,5% | 2025 |
 | `autonomia_financeira` | `kpis.autonomia_financeira` | ≥ 35% | 2025–2029 |
 | `ccc_2027` | `kpis.ciclo_caixa` | ≤ 260 dias | 2027 |
+| `pmp_2025` | `kpis.pmp_dias` | ≤ 55 dias | 2025 |
 | `gas_peca_2026` | `gas_por_peca_anual.var_vs_2024` | ≤ −10% | 2026 |
 
 Os objetivos são declarados em `src/engine/data/master/smart_objetivos.yaml` — editar para ajustar targets sem tocar em código.
@@ -290,7 +291,7 @@ dataframe_to_records() ──► API (JSON)
 
 | Ficheiro/Directório | Conteúdo | Editável |
 |---|---|---|
-| `pressupostos/globais.yaml` | Fiscal (IVA, IRC, SS, TSU), prazos (PMR/PMP), caixa mín/máx, ESG, **sazonalidade mensal por mercado** | ✓ |
+| `pressupostos/globais.yaml` | Fiscal (IVA, IRC, SS, TSU), prazos (PMR 45 d / **PMP 55 d** 2025+), caixa mín/máx, ESG, sazonalidade mensal por mercado. **PMP histórico 2024: 63 d** (via saldo auditado); 55 d reflecte objetivo de renegociação com fornecedores (Diretiva 2011/7/UE). | ✓ |
 | `pressupostos/2025/macro.yaml` | Inflação mensal 2025, EUR/USD mensal 2025 | ✓ |
 | `pressupostos/2025/vendas.yaml` | Crescimento volume e PVU por produto 2025 | ✓ |
 | `pressupostos/2025/custos.yaml` | FSE, pessoal, CMVMC 2025 | ✓ |
