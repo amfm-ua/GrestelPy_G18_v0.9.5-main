@@ -14,7 +14,10 @@
       "Bash(git commit -m ' *)",
       "Bash(dir \"c:\\\\Users\\\\amfmn\\\\OneDrive - Universidade de Aveiro\\\\PEF\\\\M6\\\\M6_G18_2605XX\\\\GrestelPy_G18_v0.9.5-main\\\\export\" /b)",
       "Bash(python/python.exe -m pytest tests/ -q --tb=no)",
-      "Bash(python/python.exe -c ' *)"
+      "Bash(python/python.exe -c ' *)",
+      "Read(//c/Users/amfmn/OneDrive - Universidade de Aveiro/PEF/M6/**)",
+      "Bash(dir /S /B OE4*)",
+      "Bash(python -c ' *)"
     ]
   }
 }
