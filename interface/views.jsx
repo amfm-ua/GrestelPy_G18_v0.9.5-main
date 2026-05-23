@@ -472,7 +472,7 @@ function RollingView({ ctx }) {
                   style={{ background: "none", border: "none", cursor: "pointer", padding: 0, font: "inherit", display: "flex", alignItems: "center", gap: 4 }}
                 >
                   <span style={{ fontSize: "0.65em", display: "inline-block", transform: fseOpen ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 0.15s" }}>▶</span>
-                  FSE
+                  FSE — total
                 </button>
               </td>
               {rf.map((r, i) => <td key={i} className="mono num">{fmt.eur(-r.fse)}</td>)}
@@ -484,6 +484,12 @@ function RollingView({ ctx }) {
               </tr>
             ))}
             <FRow label="Pessoal" values={rf.map(r => -r.pessoal)} />
+            <tr className="is-indent">
+              <td style={{ paddingLeft: "1.2rem", color: "var(--muted)", fontSize: "0.88em" }} title="Inclui: variação de inventários, reconhecimento PT2030, gastos pré-op. hub e outros rendimentos/gastos operacionais não desagregados mensalmente">
+                Outros rend./gastos op. líq.
+              </td>
+              {rf.map((r, i) => <td key={i} className="mono num" style={{ color: "var(--muted)", fontSize: "0.88em" }}>{fmt.eur(r.outros_rend_liq)}</td>)}
+            </tr>
             <tr className="is-subtotal"><td>EBITDA</td>{rf.map((r, i) => <td key={i} className="mono num">{fmt.eur(r.ebitda)}</td>)}</tr>
             <tr className="row-sep"><td colSpan={13}></td></tr>
             <FRow label="Recebimentos" values={rf.map(r => r.recebimentos)} />

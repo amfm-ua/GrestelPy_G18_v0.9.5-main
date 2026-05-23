@@ -152,8 +152,9 @@ def build_tesouraria_completa(
         capex_pag = cap["capex_aft"] + cap["capex_int"] + hub_capex_m
         amort_pag = fin["amortizacao"]
         juros_pag = fin["juros"]
+        novo_fin_m = float(bs.get("novo_financiamento_m", 0))
 
-        fluxo_fin = -(amort_pag + juros_pag) + hub_desembolso_m - hub_juros_pag_m
+        fluxo_fin = -(amort_pag + juros_pag) + hub_desembolso_m - hub_juros_pag_m + novo_fin_m
 
         var_total = fluxo_op_l - capex_pag + fluxo_fin
         caixa_bruta = caixa_prev + var_total
@@ -175,11 +176,17 @@ def build_tesouraria_completa(
                 "capex_pagamento": round(-capex_pag),
                 "amortizacoes": round(-amort_pag),
                 "juros_pagos": round(-juros_pag),
+                "novo_financiamento": round(bs.get("novo_financiamento_m", 0)),
                 "fluxo_financiamento": round(fluxo_fin),
                 "variacao_caixa_total": round(var_total),
                 "caixa_abertura": round(caixa_prev),
                 "caixa_antes_credito": round(caixa_bruta),
+                # ── Linha rotativa ────────────────────────────────────────────
+                "floor_m": round(bs.get("floor_m", 0)),
+                "saldo_antes_linha": round(bs.get("saldo_antes_linha", caixa_bruta)),
+                "gap_mensal": round(bs.get("gap_mensal", 0)),
                 "linha_credito_utilizada": round(linha_cp),
+                "juros_linha": round(bs.get("juros_linha", 0)),
                 "caixa_fecho": round(bs["caixa"]),
             }
         )
@@ -187,3 +194,93 @@ def build_tesouraria_completa(
         caixa_prev = bs["caixa"]
 
     return pd.DataFrame(rows)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Resumo da Linha de Crédito Rotativo
+# ──────────────────────────────────────────────────────────────────────────────
+
+def build_linha_summary(
+    df_bs: pd.DataFrame,
+    vn_anual: float,
+    a: Assumptions,
+) -> dict:
+    """Resumo analítico da linha rotativa com alertas e indicador de saúde.
+
+    Inputs:
+        df_bs     — balanço mensal com colunas linha_credito_cp, floor_m,
+                    gap_mensal, juros_linha, caixa, mes.
+        vn_anual  — VN anual 2025 (para rácio pico/VN).
+        a         — pressupostos (lê tecto_linha_credito).
+
+    Returns dict com métricas de resumo e lista de alertas.
+    """
+    tecto = a.caixa.get("tecto_linha_credito", None)
+    if tecto is not None:
+        tecto = float(tecto)
+
+    pico_linha = float(df_bs["linha_credito_cp"].max())
+    idx_pico = int(df_bs["linha_credito_cp"].idxmax())
+    mes_do_pico = df_bs.loc[idx_pico, "mes"]
+    drawdown_medio = float(df_bs["linha_credito_cp"].mean())
+    juros_anuais = float(df_bs["juros_linha"].sum()) if "juros_linha" in df_bs.columns else 0.0
+    saldo_final = float(df_bs.loc[df_bs["mes"] == "Dez", "caixa"].iloc[0])
+    n_meses_gap = int((df_bs["linha_credito_cp"] > 0).sum())
+    dez_drawdown = float(df_bs.loc[df_bs["mes"] == "Dez", "linha_credito_cp"].iloc[0])
+
+    # Rácio saúde: pico_linha / VN — benchmark <20% saudável, 20–35% atenção, >35% crítico
+    racio_saude = pico_linha / vn_anual if vn_anual > 0 else 0.0
+    if racio_saude < 0.20:
+        semaforo = "saudavel"
+    elif racio_saude < 0.35:
+        semaforo = "atencao"
+    else:
+        semaforo = "critico"
+
+    alertas: list[dict] = []
+
+    # ⚠️ Bug: saldo_final < floor em algum mês
+    if "floor_m" in df_bs.columns:
+        for _, row in df_bs.iterrows():
+            if row["caixa"] < row["floor_m"] - 1:
+                alertas.append({
+                    "tipo": "erro",
+                    "codigo": "SALDO_ABAIXO_FLOOR",
+                    "mes": row["mes"],
+                    "mensagem": (
+                        f"Bug: saldo_final ({row['caixa']:,.0f}€) < floor"
+                        f" ({row['floor_m']:,.0f}€) em {row['mes']}"
+                    ),
+                })
+
+    # ⚠️ Pico acima do tecto
+    if tecto is not None and pico_linha > tecto:
+        alertas.append({
+            "tipo": "aviso",
+            "codigo": "PICO_ACIMA_TECTO",
+            "mensagem": (
+                f"Pico da linha ({pico_linha:,.0f}€) excede o teto definido ({tecto:,.0f}€)"
+            ),
+        })
+
+    # ⚠️ Empresa termina o ano em dívida
+    if dez_drawdown > 0:
+        alertas.append({
+            "tipo": "aviso",
+            "codigo": "DIVIDA_FIM_ANO",
+            "mensagem": (
+                f"Empresa termina o ano com {dez_drawdown:,.0f}€ em dívida na linha rotativa"
+            ),
+        })
+
+    return {
+        "pico_linha": round(pico_linha),
+        "mes_do_pico": mes_do_pico,
+        "drawdown_medio": round(drawdown_medio),
+        "juros_anuais_linha": round(juros_anuais),
+        "saldo_final_31dez": round(saldo_final),
+        "n_meses_gap": n_meses_gap,
+        "racio_pico_vn_pct": round(racio_saude * 100, 1),
+        "semaforo_saude": semaforo,
+        "alertas": alertas,
+    }

@@ -22,7 +22,9 @@ Funções exportadas:
   build_dfc_mensal()          → DFC indireta (reconciliada com o Balanço)
   build_nfm_mensal()          → NFM e CCC mensais (derivado do Balanço)
   build_tesouraria_completa() → Tesouraria operacional + serviço dívida + CAPEX
+  build_linha_summary()       → Resumo linha rotativa com alertas (por cenário)
   build_rolling_forecast()    → Ponto de entrada: devolve dict com tudo
+  build_rolling_dual()        → Paralelo sem/com projeto + tabela comparativa
 
 Simplificações (itens de baixa frequência mensal):
   • Inventários            — interpolação linear abertura→ano-fim 2025
@@ -31,20 +33,23 @@ Simplificações (itens de baixa frequência mensal):
   • Amortizações e CAPEX   — distribuição uniforme (÷12)
   • Empréstimos NC/C       — interpolação linear (amortização uniforme implícita)
 """
-from .forecast import build_rolling_forecast
+from .forecast import build_rolling_forecast, build_rolling_dual
 from .mensais import (
     build_balanco_mensal,
     build_dfc_mensal,
     build_nfm_mensal,
     build_tesouraria_completa,
+    build_linha_summary,
 )
 from .reconciliacao import build_reconciliacao_mensal_anual
 
 __all__ = [
     "build_rolling_forecast",
+    "build_rolling_dual",
     "build_balanco_mensal",
     "build_dfc_mensal",
     "build_nfm_mensal",
     "build_tesouraria_completa",
+    "build_linha_summary",
     "build_reconciliacao_mensal_anual",
 ]

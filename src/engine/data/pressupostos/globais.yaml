@@ -55,16 +55,22 @@ caixa:
   minima_pct_vn: 0.013   # 1.3% VN → ≈ 527 k€ em 2025, ≈ 691 k€ em 2029
   maxima_pct_vn: 0.086   # 8.6% VN → ≈ 3.48 M€ em 2025, ≈ 4.57 M€ em 2029
 
-  # Taxa de juro da linha de crédito de conta corrente (overnight/revolving CP).
-  # Euribor 3m (~3,5 %) + spread bancário médio PME (~2 pp) = ~5,5 % (BdP, Jan 2025).
-  # Utilizada em statements.py para retroalimentar os juros da linha quando activa.
-  taxa_juro_cc_anual: 0.055
+  # Taxa de juro da linha de crédito rotativo CP (Euribor 3m ~3,5% + spread ~3pp).
+  taxa_juro_cc_anual: 0.065   # 6.5% — usado no dimensionamento da linha rotativa
 
-  # Floor para o Orçamento de Tesouraria Mensal (Mapa 6.11).
-  # Valor 0: o saldo mensal reflete os fluxos reais; quando negativo, a linha de crédito
-  # de curto prazo é acionada automaticamente (plug contabilístico). Permite identificar
-  # os meses com pressão de liquidez — informação com valor académico relevante.
+  # Floor fixo legado (mantido para retrocompatibilidade; sobreposto pelo floor dinâmico abaixo).
   mensal_minima: 0
+
+  # ── Floor Dinâmico ───────────────────────────────────────────────────────────
+  # Floor[m] = MAX(floor_minimo_abs ; pct_floor × Pagamentos_Totais[m+1])
+  # Pagamentos_Totais = Pag.Fornecedores + Pag.Pessoal + Total_Fiscal do mês seguinte.
+  # Para Dezembro: proxy = média(Out, Nov, Dez) dos pagamentos do próprio ano.
+  floor_minimo_abs: 250000   # €250.000 — mínimo absoluto (editável)
+  pct_floor: 0.15             # 15% dos pagamentos totais do mês seguinte (editável)
+
+  # ── Linha de Crédito Rotativo ─────────────────────────────────────────────────
+  # null = sem limite; número = gera alerta quando drawdown > tecto
+  tecto_linha_credito: null
 
 distribuicao_resultados:
   payout_ratio: 0.20
@@ -239,3 +245,12 @@ cambio_usd:
   pct_vn_usd: 0.21
 
 triggers: {}
+
+# ── Novo Financiamento Core ───────────────────────────────────────────────────
+# Encaixe de novo empréstimo bancário (fora do hub) com mês e montante editáveis.
+# O valor entra no fluxo_financiamento do mês configurado (desembolso único).
+# Para cenário com projeto (hub_on=True), usar montante_com_projeto.
+novo_financiamento_core:
+  mes_desembolso: Jan             # mês do desembolso (Jan por defeito)
+  montante_sem_projeto: 1130000   # €1.130.000 — cenário sem hub
+  montante_com_projeto: 1130000   # igual por defeito; ajustar se hub exigir financiamento adicional

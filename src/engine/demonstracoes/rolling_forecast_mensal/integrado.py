@@ -31,21 +31,53 @@ def _build_integrated_monthly(
     Retorna:
         tuple[pd.DataFrame, pd.DataFrame]: df_balanco, df_dfc.
     """
-    # Floor mensal = 0: o saldo real do mês é mostrado sem reserva mínima forçada.
-    # Quando negativo, a linha de crédito CP é acionada (plug). Permite identificar
-    # meses com pressão de liquidez — informação relevante no Mapa de Tesouraria (6.11).
-    # Ver globais.yaml § caixa para fundamento académico (Keynes/Baumol).
-    caixa_min = float(a.caixa.get("mensal_minima", 0))
+    # ── Parâmetros de caixa ───────────────────────────────────────────────────
+    # Floor dinâmico: Floor[m] = MAX(floor_minimo_abs ; pct_floor × Pag_Totais[m+1])
+    # Retrocede para mensal_minima (legado) quando ambos os parâmetros novos são 0.
+    floor_minimo_abs = float(a.caixa.get("floor_minimo_abs", 250_000))
+    pct_floor = float(a.caixa.get("pct_floor", 0.15))
+    taxa_linha = float(a.caixa.get("taxa_juro_cc_anual", 0.065))
+    tecto_linha = a.caixa.get("tecto_linha_credito", None)
+    if tecto_linha is not None:
+        tecto_linha = float(tecto_linha)
     # Teto mensal: % do VN anual projetado 2025 (consistente com o Balanço anual).
     _vn_anual = float(df_dr_m["vn"].sum()) if "vn" in df_dr_m.columns else 40_000_000.0
     caixa_max = _vn_anual * float(a.caixa.get("maxima_pct_vn", 0.086))
     iva_venda = iva_efetivo_vendas(a)
     iva_fse = a.impostos.get("IVA_FSE", 0.15)
 
+    # ── Novo financiamento core (não-hub) ─────────────────────────────────────
+    # Lê parâmetros de globais.yaml § novo_financiamento_core.
+    # Escolhe montante_com_projeto quando hub está activo, sem_projeto caso contrário.
+    # O novo empréstimo entra como caixa (DFC) E como passivo NC (balanço),
+    # garantindo controlo = 0 (dupla entrada contabilística completa).
+    _raw_nf = a.raw.get("novo_financiamento_core", {})
+    _mes_nf = str(_raw_nf.get("mes_desembolso", "Jan"))
+    _hub_activo = bool(a.raw.get("hub_logistico", {}).get("incluir_hub", False))
+    if _hub_activo:
+        _montante_nf = float(_raw_nf.get("montante_com_projeto",
+                                          _raw_nf.get("montante_sem_projeto", 1_130_000)))
+    else:
+        _montante_nf = float(_raw_nf.get("montante_sem_projeto", 1_130_000))
+    # Índice do mês de desembolso (0=Jan … 11=Dez); fallback 0 se mês inválido.
+    _mes_nf_idx = MESES.index(_mes_nf) if _mes_nf in MESES else 0
+
     fin_m = _financiamento_mensal(sched)
     cap_m = _capex_mensal(sched)
     dr_map = df_dr_m.set_index("mes").to_dict("index")
     t_map = df_t_m.set_index("mes").to_dict("index")
+
+    # ── Pré-computar pagamentos totais por mês (para floor dinâmico) ──────────
+    # Pagamentos_Totais[m] = Pag.Fornecedores + Pag.Pessoal + Total_Fiscal
+    # Todos positivos (saídas de caixa) — ver tesouraria.py § sign convention.
+    pag_totais: dict[str, float] = {}
+    for _m in MESES:
+        _t = t_map[_m]
+        pag_totais[_m] = (
+            float(_t["pagamentos_fornecedores"])
+            + float(_t["pagamentos_pessoal"])
+            + float(_t.get("total_saidas_fiscais", abs(float(_t.get("fluxo_fiscal", 0)))))
+        )
 
     b = base.balanco
     ref = sched.reference_balanco
@@ -161,6 +193,18 @@ def _build_integrated_monthly(
         # CAPEX total do mês (core Grestel + hub) — para DFC fluxo_investimento
         capex_m = cap["capex_aft"] + cap["capex_int"] + hub_capex_m
 
+        # ── Floor dinâmico do mês ─────────────────────────────────────────────
+        # Floor[m] = MAX(floor_minimo_abs ; pct_floor × Pag_Totais[m+1])
+        # Dezembro: proxy = média(Out, Nov, Dez) — Jan do ano seguinte indisponível.
+        if i < 11:
+            _pag_next = pag_totais[MESES[i + 1]]
+        else:
+            _pag_next = (pag_totais["Out"] + pag_totais["Nov"] + pag_totais["Dez"]) / 3.0
+        floor_m = max(floor_minimo_abs, pct_floor * _pag_next)
+
+        # ── Novo financiamento core — encaixe único no mês configurado ────────
+        novo_fin_m = _montante_nf if m == _mes_nf else 0.0
+
         # ── 1. Itens determinísticos do Balanço ───────────────────────────────
         # AFT core (Grestel) — evolução autónoma independente do hub
         aft_core_m = aft_core_prev + cap["capex_aft"] - cap["dep_aft"]
@@ -202,7 +246,9 @@ def _build_integrated_monthly(
         outros_pc_m = _interp(outros_pc_ini, outros_pc_fin, i)
 
         # NC/C: core Grestel (interpolação) + hub (constante, carência 2025-2027)
-        nc_m = _interp(nc_ini, nc_fin_r, i) + hub_nc
+        #       + novo_fin_nc (constante a partir do mês de desembolso — dupla entrada)
+        _novo_fin_nc = _montante_nf if i >= _mes_nf_idx else 0.0
+        nc_m = _interp(nc_ini, nc_fin_r, i) + hub_nc + _novo_fin_nc
         c_m  = _interp(c_ini,  c_fin_r,  i) + hub_c
 
         rl_acum += dr["rl"]
@@ -234,25 +280,31 @@ def _build_integrated_monthly(
         # Hub: desembolso bancário (entrada Jan) − juros totais pagos (saída mensal)
         # Os juros hub são sempre saída de caixa real (NCRF 2 §33b), mesmo
         # os capitalizados no AFT (NCRF 10) — distinção contabilística, não financeira.
-        fluxo_fin_base = -amort_m - juros_m + hub_desembolso_m - hub_juros_pag_m
+        # novo_fin_m: encaixe de novo financiamento core (entrada única no mês configurado)
+        fluxo_fin_base = -amort_m - juros_m + hub_desembolso_m - hub_juros_pag_m + novo_fin_m
         var_caixa_base = fluxo_op + fluxo_inv_base + fluxo_fin_base
 
         # ── 4. Posição líquida disponível no fecho do mês ─────────────────────
         posicao_liq = caixa_prev + aplic_prev - linha_prev + var_caixa_base
 
         # ── 5. Decisão de gestão de caixa ─────────────────────────────────────
+        # floor_m é dinâmico: MAX(floor_minimo_abs ; pct_floor × Pag_Totais[m+1])
+        # gap_m = drawdown necessário = MAX(0 ; floor_m − posicao_liq)
         if posicao_liq >= caixa_max:
             aplic_cp_m = posicao_liq - caixa_max
             linha_cp_m = 0.0
             caixa_m = caixa_max
-        elif posicao_liq >= caixa_min:
+        elif posicao_liq >= floor_m:
             aplic_cp_m = 0.0
             linha_cp_m = 0.0
             caixa_m = posicao_liq
         else:
             aplic_cp_m = 0.0
-            linha_cp_m = caixa_min - posicao_liq
-            caixa_m = caixa_min
+            linha_cp_m = floor_m - posicao_liq   # drawdown = gap pontual
+            caixa_m = floor_m
+
+        # Custo estimado da linha: drawdown × taxa_anual / 12
+        juros_linha_m = linha_cp_m * (taxa_linha / 12.0)
 
         # ── 6. Ajustes DFC: Δ Aplicações e Δ Linha CP ─────────────────────────
         d_aplic = -(aplic_cp_m - aplic_prev)
@@ -312,6 +364,13 @@ def _build_integrated_monthly(
                 "total_passivo": round(total_passivo),
                 "total_cp_passivo": round(total_cp_passivo),
                 "controlo": controlo,
+                # ── Linha rotativa: outputs analíticos ───────────────────────
+                "floor_m": round(floor_m),
+                "saldo_antes_linha": round(posicao_liq),
+                "gap_mensal": round(max(0.0, floor_m - posicao_liq)),
+                "juros_linha": round(juros_linha_m),
+                "novo_financiamento_m": round(novo_fin_m),
+                # ── Internos para reconciliação ───────────────────────────────
                 "_capex_m": round(capex_m),
                 "_dep_m": round(dep_m),
                 "_amort_m": round(amort_m),
@@ -340,6 +399,7 @@ def _build_integrated_monthly(
                 "fluxo_investimento": round(fluxo_inv),
                 "amortizacoes": round(-amort_m),
                 "juros_pagos": round(-juros_m),
+                "novo_financiamento": round(novo_fin_m),
                 "var_linha_cp": round(d_linha),
                 "fluxo_financiamento": round(fluxo_fin),
                 "variacao_caixa": round(var_caixa),
