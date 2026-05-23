@@ -11,13 +11,13 @@ Principais saídas:
   • Correlações de Pearson driver → VAL (ranking de importância dos riscos)
   • Dados de histograma prontos para renderização no frontend
 
-Distribuições por driver:
-  inventario   Triangular(1 M€, 2 M€, 2,5 M€)       — evento pontual com teto físico
-  pt2030_taxa  Triangular(20 %, 45 %, 45 %)           — assimétrica (base = máximo aprovável)
+Distribuições por driver (simétricas → E[driver] = valor_cenário → E[VAL_MC] ≈ VAL_determinístico):
+  inventario   Triangular(75 %, 100 %, 125 % do cenário) — simétrica; mean = mode
+  pt2030_taxa  Triangular(20 %, 45 %, 45 %)              — assimétrica (aprovação PT2030 tem teto em 45 %)
   b2c          Normal truncada N(1,0; σ=0,20) ∈ [0,3; 2,0] — incerteza de mercado
-  pessoal      Triangular(200 k€, 380 k€, 500 k€)    — eficácia da automação
-  wacc         Triangular(6 %, 8,2 %, 10 %)           — risco de financiamento
-  capex        Triangular(−15 %, base, +15 %)         — derrapagem de obra 4.0
+  pessoal      Triangular(70 %, 100 %, 130 % do cenário) — simétrica; mean = mode
+  wacc         Triangular(WACC−2 p.p., WACC_cenário, WACC+2 p.p.) — simétrica; mean = wacc_cenário
+  capex        Triangular(−15 %, base, +15 %)            — simétrica; mean = capex_base
 
 Dependências: apenas numpy + stdlib (sem scipy).
 """
@@ -69,7 +69,7 @@ DEFAULT_DISTRIBUTIONS: dict[str, dict] = {
     "wacc": {
         "type": "triangular",
         "min": 0.06,
-        "mode": 0.082,
+        "mode": 0.073,
         "max": 0.10,
     },
     # capex: min/mode/max calculados em runtime (±15 % sobre proj["capex"]["base"])
@@ -351,6 +351,44 @@ def monte_carlo_hub(
         if distributions and drv in distributions:
             cfg.update(distributions[drv])
         dist_efetivas[drv] = cfg
+
+    # WACC: distribuição simétrica ±2 p.p. em torno do WACC do cenário.
+    # Distribuição simétrica garante E[WACC] = wacc_cenário → E[VAL_MC] ≈ VAL_determinístico.
+    # Limites fixos [6%, mode, 10%] criavam assimetria: para Upside (mode=6,9%) a média
+    # subia para 7,6%, deprimindo sistematicamente o VAL médio do MC.
+    if not (distributions and "wacc" in distributions):
+        _wacc_spread = 0.02  # ±2 p.p. de incerteza sobre o custo de capital
+        dist_efetivas["wacc"] = {
+            "type": "triangular",
+            "min": max(0.04, wacc_base - _wacc_spread),
+            "mode": wacc_base,
+            "max": min(0.15, wacc_base + _wacc_spread),
+        }
+    elif "mode" not in (distributions.get("wacc") or {}):
+        dist_efetivas["wacc"]["mode"] = wacc_base
+
+    # Pessoal e inventário: distribuições simétricas centradas no valor do cenário.
+    # Intervalos simétricos garantem E[driver] = valor_cenário → E[VAL_MC] ≈ VAL_determinístico.
+    #   pessoal:    Triangular[mode × 0,70 ; mode ; mode × 1,30]  (mean = mode)
+    #   inventario: Triangular[mode × 0,75 ; mode ; mode × 1,25]  (mean = mode)
+    pessoal_cenario = float(proj["beneficios_anuais"].get("poupanca_operacional", 380_000))
+    inventario_cenario = float(proj["beneficios_pontuais"].get("libertacao_inventario", 2_000_000))
+
+    if not (distributions and "pessoal" in distributions):
+        dist_efetivas["pessoal"] = {
+            "type": "triangular",
+            "min": pessoal_cenario * 0.70,
+            "mode": pessoal_cenario,
+            "max": pessoal_cenario * 1.30,
+        }
+
+    if not (distributions and "inventario" in distributions):
+        dist_efetivas["inventario"] = {
+            "type": "triangular",
+            "min": inventario_cenario * 0.75,
+            "mode": inventario_cenario,
+            "max": inventario_cenario * 1.25,
+        }
 
     # Calcular limites do CAPEX em runtime (dependem do capex_base do YAML)
     if dist_efetivas["capex"]["min"] is None:

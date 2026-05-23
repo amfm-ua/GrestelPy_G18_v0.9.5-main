@@ -380,9 +380,9 @@ projeto_hub:
       calcular_engine: true              # engine apura NFM_2035 e inclui como +CF em 2035
 
   viabilidade:
-    # Fluxos nominais (preços correntes) — WACC nominal 8,2 % derivado dos componentes CAPM.
-    # Cálculo: w_e × Ke + w_d × Kd × (1−t) = 0,25 × 23,6 % + 0,75 × 4,02 % × 0,755 = 8,2 %
-    wacc: 0.082
+    # Fluxos nominais (preços correntes) — WACC nominal 7,3 % derivado dos componentes CAPM.
+    # Cálculo: w_e × Ke + w_d × Kd × (1−t) = 0,25 × 20,1 % + 0,75 × 4,02 % × 0,755 = 7,3 %
+    wacc: 0.073
     # Taxa combinada IRC: 20,0 % + 1,5 % derrama municipal + 3,0 % derrama estadual = 24,5 %
     irc_taxa: 0.245
     eur_usd_base: 1.08
@@ -395,8 +395,19 @@ projeto_hub:
     wacc_dinamico: true
     rf: 0.030                  # Taxa sem risco — OT Portugal 10 anos (2024-2025)
     erp: 0.070                 # ERP Portugal — Damodaran 2025 (base EUA 5,5 % + CRP Portugal ≈ 1,5 %)
-    beta_u: 0.90               # Beta desalavancado — sector logística/transporte Europa (Damodaran)
-    ke: 0.236                  # Custo do capital próprio — CAPM: rf 3 % + β_l 2,94 × ERP 7,0 %
-                               # β_l = β_u × (1 + (1−t) × D/E) = 0,9 × (1 + 0,755 × 3) = 2,94
+    beta_u: 0.75
+    # Fonte: Damodaran — "Betas by Sector (Europe)", betaEurope.xls, janeiro 2026
+    #   Industry: Household Products / Housewares & Accessories
+    #   Coluna usada: Unlevered Beta (corr. for cash) — remove o efeito de tesouraria
+    #   Intervalo observado: 0,70 (conservador) a 0,80 (prudente); midpoint = 0,75 adoptado
+    #   Justificação do setor: a Grestel é fabricante de cerâmica utilitária/decorativa;
+    #   o Hub é um ativo interno de automação operacional — o risco sistemático relevante
+    #   é o do negócio core da empresa-mãe, não de uma empresa de logística autónoma.
+    #   Nota sobre D/E: o multiplicador de alavancagem (D/E = 3,0; D/(D+E) = 75 %) reflete
+    #   o financiamento específico do projeto (€4,5 M banco + €1,5 M equity). Alguns académicos
+    #   (Brealey, Myers & Allen, Cap. 19) recomendam usar o D/E alvo da empresa-mãe para realavancar;
+    #   optou-se pelo D/E do projeto por maior conservadorismo e coerência com o WACC dinâmico.
+    ke: 0.201                  # Custo do capital próprio — CAPM: rf 3 % + β_l 2,45 × ERP 7,0 %
+                               # β_l = β_u × (1 + (1−t) × D/E) = 0,75 × (1 + 0,755 × 3) = 2,45
     kd: 0.0402                 # Custo médio ponderado da dívida: (3M×4,15%+1,5M×3,75%)/4,5M = 4,02 %
     equity_inicial: 1500000    # Capital próprio investido = 25 % × CAPEX 6 M€

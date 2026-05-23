@@ -219,6 +219,7 @@ def build_balanco(
     outras_var = cp["Outras_Var_CP"]
 
     payout = a.distribuicao["payout_ratio"]
+    reserva_legal = a.distribuicao.get("reserva_legal_pct", 0.0)
     inicio_div = a.distribuicao["ano_inicio_distribuicao"]
 
     rt = {
@@ -232,8 +233,12 @@ def build_balanco(
         if y == 2025:
             rt[y] = rt[y - 1] + base.balanco["capital_proprio"]["RL_2024"]
         else:
-            div = rl_prev * payout if rl_cur > 0 and y >= inicio_div else 0.0
-            rt[y] = rt[y - 1] + rl_prev - div
+            if rl_cur > 0 and y >= inicio_div:
+                div = rl_prev * payout
+                res = rl_prev * reserva_legal
+            else:
+                div = res = 0.0
+            rt[y] = rt[y - 1] + rl_prev - div - res
 
     irc_dict = {
         y: -float(df_dr[df_dr.ano == y]["irc"].iloc[0])

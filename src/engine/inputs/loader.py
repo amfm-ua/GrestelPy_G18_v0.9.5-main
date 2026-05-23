@@ -284,7 +284,7 @@ _HUB_SCENARIO_RECALIBRATION: dict[str, dict] = {
                 "necessidades_fundo_maneio": {
                     "compras_manutencao_anuais": 84000,
                 },
-                "viabilidade": {"wacc": 0.078},
+                "viabilidade": {"wacc": 0.069},  # Base 7,3 % − 0,4 pp (Upside)
             },
         },
     },
@@ -320,7 +320,7 @@ _HUB_SCENARIO_RECALIBRATION: dict[str, dict] = {
                 "necessidades_fundo_maneio": {
                     "compras_manutencao_anuais": 99000,
                 },
-                "viabilidade": {"wacc": 0.090},
+                "viabilidade": {"wacc": 0.081},  # Base 7,3 % + 0,8 pp (Downside)
             },
         },
     },
@@ -357,7 +357,7 @@ _HUB_SCENARIO_RECALIBRATION: dict[str, dict] = {
                     "compras_manutencao_anuais": 112500,
                     "receita_servicos_externos_2028": 150000,
                 },
-                "viabilidade": {"wacc": 0.100},
+                "viabilidade": {"wacc": 0.091},  # Base 7,3 % + 1,8 pp (Stress)
             },
         },
     },

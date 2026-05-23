@@ -1,16 +1,11 @@
 Análise Crítica — GrestelPy M6
-1. Salto de Vendas 2024→2025 (+20,3%) não justificado
-O modelo projeta VN 2024 = 37,884 k€ → VN 2025 = 45,569 k€ (+20,3%). Para os anos seguintes, o crescimento é de apenas 3–5% nominal. Esta aceleração extraordinária num único ano precisa de fundamentação explícita: novo cliente âncora? nova loja? expansão de mercado? Sem justificação, é a hipótese mais fragilizável de todo o modelo.
 
-Perguntar ao professor: Qual o driver específico que justifica +20% de VN em 2025, em contraste com um crescimento de equilíbrio de ~4–5%?
+
 
 2. FSE cai -13% em 2025 com vendas a crescer +20%
 FSE 2024 = 7,463 k€ → FSE 2025 = 6,489 k€ (-13,0%), enquanto as vendas crescem +20%. Em termos de proporcionalidade, uma empresa a crescer 20% teria normalmente mais subcontratos, energia, transportes — não menos. A racionalização do FSE precisa de um racional específico (p.ex.: internalização de um subcontrato, renegociação de contratos de energia).
 
-3. Beta mal enquadrado no WACC do Hub
-O WACC (8,2%) usa β_u = 0,90 do setor logístico/transporte europeu (Damodaran). Mas o Hub é um ativo interno de automação de uma empresa de cerâmica, não uma empresa de logística. O setor correto para o projeto deveria ser o da Grestel (Housewares & Accessories, β_u ≈ 0,7–0,8 Damodaran). Usar o beta errado sobrestima o risco do projeto e pode inflacionar ou deflacionar artificialmente o VAL.
 
-Adicionalmente, β_l = 2,94 → Ke = 23,6% é extraordinariamente elevado para um projeto interno de uma empresa industrial estável. Na avaliação FCFF de um projeto, há académicos que defendem usar apenas o WACC da empresa-mãe ajustado ao risco operacional incremental do projeto.
 
 4. Taxa IRC 24,5% vs. taxa efetiva histórica de 8,4%
 O modelo usa IRC = 20% + 1,5% derrama municipal + 3% derrama estadual = 24,5% no hub. A derrama estadual de 3% só se aplica quando o lucro tributável supera 35M€. Mas a IRC pago pela Grestel em 2024 foi apenas 127 k€ sobre RAI de 1,517 M€ → taxa efetiva real = 8,4%. O modelo projetado usa 24,5% (taxa marginal máxima), o que é muito mais conservador, mas cria inconsistência: o RFAI (crédito de 595 k€) demora muitos anos a absorver porque o IRC base é alto. Se a taxa efetiva real for mais baixa, o RFAI absorve-se mais rapidamente e o VAL é diferente.
@@ -39,10 +34,6 @@ O objetivo SMART de emissões usa: 447,486 € / 0,15 €/kWh = 2,983,000 kWh. O
 12. Euribor 3M corrigido de 2,65% para 2,90% — Justificação Pontual
 O YAML de base histórica regista: Euribor_3M_base_2025: 0.0290 # BCE mar-2025; corrigido de 0.0265 (M3). Isto indica que os pressupostos foram ajustados pós-entrega de M3. Uma correção destas tem impacto no custo da dívida e nas demonstrações financeiras — o professor pode questionar se outros pressupostos de M3 foram igualmente revistos ou apenas este.
 
-Resumo das 3 questões mais críticas a levar ao professor:
 
-O que explica o salto de VN +20,3% em 2025? É o pressuposto mais determinante e o menos fundamentado.
-Como se justifica o beta do sector logístico para avaliar um projeto interno de automação de uma empresa de cerâmica?
-Por que se usa a taxa marginal de IRC 24,5% quando a taxa efetiva histórica da empresa foi 8,4% (2024)?
 
 

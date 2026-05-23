@@ -244,6 +244,17 @@ def _apply_hub_quebras(a, b, s, delta):
     ben["reducao_quebras"] = base * (1 + float(delta))
 
 
+def _apply_preco_vendas(a, b, s, delta):
+    """Aplica choque ao crescimento do preço de venda."""
+    _ = b, s
+
+    block = _block(a, "preco_vendas")
+    block["annual_2025"] = float(block.get("annual_2025", 0.0)) + float(delta)
+
+    for y in [2026, 2027, 2028, 2029]:
+        block[y] = float(block.get(y, 0.0)) + float(delta)
+
+
 def _apply_eur_usd(a, b, s, delta):
     """Aplica choque proporcional à taxa EUR/USD em todos os anos.
 
@@ -266,6 +277,11 @@ DRIVERS = {
         "Crescimento Volume",
         [-0.05, -0.025, 0, 0.025, 0.05],
         _apply_volume_vn,
+    ),
+    "preco_vendas": (
+        "Preço de Venda",
+        [-0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03],
+        _apply_preco_vendas,
     ),
     "eur_usd": (
         "EUR/USD (câmbio)",
@@ -605,3 +621,83 @@ def sensitivity_juros(
         year=2025,
         metric="rl",
     )
+
+
+# ── API de sensibilidade para o frontend (endpoint único) ──────────────────
+
+_UI_VARS_STD = [
+    ("vol",     "volume_vn",    "Volume de Vendas",  "pp", 0.030),
+    ("preco",   "preco_vendas", "Preço de Venda",    "pp", 0.030),
+    ("fse",     "fse_pct_vn",   "FSE",               "pp", 0.030),
+    ("pessoal", "pessoal_cresc","Gastos c/ Pessoal", "pp", 0.035),
+    ("cmvmc",   "cmvmc_pct_vn", "CMVMC",             "pp", 0.030),
+]
+
+_UI_VARS_HUB = [
+    ("hub_poupanca", "hub_poupanca", "Hub · Poupança Op.",    "%", 480_000),
+    ("hub_quebras",  "hub_quebras",  "Hub · Redução Quebras", "%",  80_000),
+]
+
+_STEPS_STD = [-0.03, -0.02, -0.01, 0.0, 0.01, 0.02, 0.03]
+_STEPS_HUB = [-0.30, -0.15, 0.0, 0.15, 0.30]
+
+
+def _run_metrics_2025(
+    cenario: str,
+    driver_key: str | None,
+    delta: float,
+    hub_on: bool = False,
+) -> dict:
+    """Executa o modelo e devolve {vn, ebitda, margem_ebitda, rl} para 2025."""
+    a, b, s = _inputs_load(cenario=cenario)
+
+    a.raw.setdefault("hub_logistico", {})["incluir_hub"] = hub_on
+
+    if driver_key is not None:
+        DRIVERS[driver_key][2](a, b, s, delta)
+
+    dr = statements.build_dr(a, b, s)
+    row = dr[dr.ano == 2025]
+
+    if row.empty:
+        return {"vn": 0.0, "ebitda": 0.0, "margem_ebitda": 0.0, "rl": 0.0}
+
+    r = row.iloc[0]
+
+    def _g(col: str) -> float:
+        return float(r[col]) if col in r.index else 0.0
+
+    vn = _g("vn")
+    ebitda = _g("ebitda")
+    return {
+        "vn": vn,
+        "ebitda": ebitda,
+        "margem_ebitda": ebitda / vn if vn else 0.0,
+        "rl": _g("rl"),
+    }
+
+
+def sensitivity_ui(cenario: str = "Base", hub_on: bool = False) -> dict:
+    """Análise de sensibilidade completa para a UI — executa tudo no backend."""
+    base = _run_metrics_2025(cenario, None, 0.0, hub_on)
+
+    all_vars = list(_UI_VARS_STD)
+    if hub_on:
+        all_vars.extend(_UI_VARS_HUB)
+
+    variables: dict = {}
+    for fe_key, be_key, label, unit, base_rate in all_vars:
+        is_hub = fe_key in ("hub_poupanca", "hub_quebras")
+        steps_list = _STEPS_HUB if is_hub else _STEPS_STD
+        steps = []
+        for delta in steps_list:
+            m = _run_metrics_2025(cenario, be_key, delta, hub_on)
+            steps.append({"delta": delta, **m})
+        variables[fe_key] = {
+            "label": label,
+            "unit": unit,
+            "base_rate": base_rate,
+            "steps": steps,
+        }
+
+    return {"base": base, "variables": variables}

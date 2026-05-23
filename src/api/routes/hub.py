@@ -315,6 +315,7 @@ def get_hub_comparativo(
 
 @router.get("/hub/monte-carlo")
 def get_hub_monte_carlo(
+    cenario: str = Query("Base"),
     n: int = Query(1000, ge=100, le=5000, description="Número de simulações (100–5 000)"),
     irc_taxa: float = Query(0.245, description="Taxa combinada de IRC (Derrama incluída)"),
     seed: int = Query(None, description="Seed para reprodutibilidade (omitir = aleatório)"),
@@ -328,8 +329,11 @@ def get_hub_monte_carlo(
     - P(TIR > WACC_base): probabilidade de excesso de retorno
     - Correlações de Pearson driver → VAL (ranking de importância dos riscos)
     - Histograma do VAL (40 bins) para visualização
+
+    O cenário condiciona os parâmetros base (poupança, inventário, benefícios comerciais,
+    WACC) — cada cenário tem o seu próprio ponto central para as distribuições.
     """
-    hub = hub_load()
+    hub = _hub_with_scenario(cenario)
     return monte_carlo_hub(hub=hub, n_simulations=n, irc_taxa=irc_taxa, seed=seed)
 
 

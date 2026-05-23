@@ -356,8 +356,8 @@ def viabilidade_hub(
     #
     # Relevância para o VAL: quanto mais tarde for absorvido o crédito, menor
     # o seu valor presente. O crédito gerado em 2026 e absorvido apenas em
-    # 2032 perde, ao WACC de 8,2 %, cerca de 38 % do seu valor inicial
-    # (1 − 1/1.082⁶ ≈ 0.38). Este efeito de timing penaliza o VAL no cenário
+    # 2032 perde, ao WACC de 7,3 %, cerca de 35 % do seu valor inicial
+    # (1 − 1/1.073⁶ ≈ 0.35). Este efeito de timing penaliza o VAL no cenário
     # conservador (limite sobre IRC hub) vs. o cenário real (IRC Grestel total).
     # ---------------------------------------------------------------------------
     rfai_cfg = proj.get("rfai", {})

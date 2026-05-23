@@ -7,6 +7,7 @@ from src.api.serializers import _fse_mensal_to_rows, _wrap_rows
 from src.engine.inputs import upsert_custom_scenario, load
 from src.engine.inputs.loader import CENARIOS
 from src.engine.modelo.model import dataframe_to_records, run_model
+from src.engine.modelo.sensitivity import sensitivity_ui
 from src.engine.operacional import produção as producao_mod
 
 _CENARIOS_COMPARACAO = ["Base", "Upside", "Downside", "Stress"]
@@ -84,6 +85,18 @@ def get_scenarios_hub_delta(ecogres_on: bool = Query(False)):
                 "delta_rl": float(r_com.get("rl", 0)) - float(r_sem.get("rl", 0)),
             })
         result[sc] = deltas
+    return result
+
+
+@router.get("/sensitivity")
+def get_sensitivity(
+    cenario: str = Query("Base"),
+    hub_on: bool = Query(False),
+    ecogres_on: bool = Query(False),
+):
+    """Análise de sensibilidade completa (one-at-a-time) — todos os runs no backend."""
+    _ = ecogres_on  # reservado para uso futuro
+    result = sensitivity_ui(cenario=cenario, hub_on=hub_on)
     return result
 
 

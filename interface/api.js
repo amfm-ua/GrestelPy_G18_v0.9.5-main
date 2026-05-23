@@ -480,8 +480,8 @@ const API = (() => {
   }
 
   // ─── hubMonteCarlo ─────────────────────────────────────────────────────────
-  async function hubMonteCarlo({ n = 1000, irc_taxa = 0.245, seed } = {}) {
-    const params = new URLSearchParams({ n: String(n), irc_taxa: String(irc_taxa) });
+  async function hubMonteCarlo({ cenario = "Base", n = 1000, irc_taxa = 0.245, seed } = {}) {
+    const params = new URLSearchParams({ cenario, n: String(n), irc_taxa: String(irc_taxa) });
     if (seed != null) params.set("seed", String(seed));
     const r = await fetch(BACKEND_URL + "/api/hub/monte-carlo?" + params);
     if (!r.ok) throw new Error("Erro /hub/monte-carlo: " + r.status);
@@ -540,30 +540,7 @@ const API = (() => {
   }
 
   // ─── sensibilidade ─────────────────────────────────────────────────────────
-  // Testa cada variável individualmente (one-at-a-time): ±3 pp em 7 pontos.
-  // Quando hub_on=true, inclui também os drivers hub (±30 % em 5 pontos).
   async function sensibilidade({ cenario = "Base", hub_on = false, ecogres_on = false } = {}) {
-    const VARS_STANDARD = [
-      { key: "vol",     label: "Volume de Vendas",  overrideKey: "crescimento_volume_vendas", unit: "pp" },
-      { key: "preco",   label: "Preço de Venda",    overrideKey: "crescimento_pvu_vendas",    unit: "pp" },
-      { key: "fse",     label: "FSE",               overrideKey: "crescimento_fse",           unit: "pp" },
-      { key: "pessoal", label: "Gastos c/ Pessoal", overrideKey: "crescimento_pessoal",       unit: "pp" },
-      { key: "cmvmc",   label: "CMVMC",             overrideKey: "crescimento_cmvmc",         unit: "pp" },
-    ];
-    const VARS_HUB = hub_on ? [
-      {
-        key: "hub_poupanca", label: "Hub · Poupança Op.", unit: "%", hubVar: true, baseValue: 480000,
-        buildOverride: val => ({ hub_logistico: { projeto_hub: { beneficios_anuais: { poupanca_operacional: val } } } }),
-      },
-      {
-        key: "hub_quebras", label: "Hub · Redução Quebras", unit: "%", hubVar: true, baseValue: 80000,
-        buildOverride: val => ({ hub_logistico: { projeto_hub: { beneficios_anuais: { reducao_quebras: val } } } }),
-      },
-    ] : [];
-    const VARS = [...VARS_STANDARD, ...VARS_HUB];
-    const STEPS_STD = [-0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03];
-    const STEPS_HUB = [-0.30, -0.15, 0, 0.15, 0.30];
-
     if (useMock) {
       const s = GRESTEL.SCENARIOS[cenario] || GRESTEL.SCENARIOS.Base;
       const d24 = GRESTEL.DR_2024;
@@ -575,6 +552,8 @@ const API = (() => {
         pessoal: s.pessoal[1] || 0.035,
         cmvmc:   s.cmvmc[1]   || 0.030,
       };
+      const STEPS_STD = [-0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03];
+      const STEPS_HUB = [-0.30, -0.15, 0, 0.15, 0.30];
 
       function calc2025(vol, preco, fse_g, pes_g, cmv_g) {
         const vendasGrowth = (1 + vol) * (1 + preco) - 1;
@@ -596,21 +575,32 @@ const API = (() => {
 
       const base = calc2025(baseRates.vol, baseRates.preco, baseRates.fse, baseRates.pessoal, baseRates.cmvmc);
       const variables = {};
-      for (const v of VARS) {
-        if (v.hubVar) {
-          variables[v.key] = {
-            label: v.label, unit: v.unit, base_rate: v.baseValue,
+      const VARS_STD = [
+        { key: "vol",     label: "Volume de Vendas",  unit: "pp" },
+        { key: "preco",   label: "Preço de Venda",    unit: "pp" },
+        { key: "fse",     label: "FSE",               unit: "pp" },
+        { key: "pessoal", label: "Gastos c/ Pessoal", unit: "pp" },
+        { key: "cmvmc",   label: "CMVMC",             unit: "pp" },
+      ];
+      for (const v of VARS_STD) {
+        variables[v.key] = {
+          label: v.label, unit: v.unit, base_rate: baseRates[v.key],
+          steps: STEPS_STD.map(delta => {
+            const r = { ...baseRates, [v.key]: baseRates[v.key] + delta };
+            return { delta, ...calc2025(r.vol, r.preco, r.fse, r.pessoal, r.cmvmc) };
+          }),
+        };
+      }
+      if (hub_on) {
+        for (const [key, label, baseValue] of [
+          ["hub_poupanca", "Hub · Poupança Op.",    480000],
+          ["hub_quebras",  "Hub · Redução Quebras",  80000],
+        ]) {
+          variables[key] = {
+            label, unit: "%", base_rate: baseValue,
             steps: STEPS_HUB.map(delta => {
-              const ebitdaDelta = v.baseValue * delta;
+              const ebitdaDelta = baseValue * delta;
               return { delta, vn: base.vn, ebitda: base.ebitda + ebitdaDelta, margem_ebitda: (base.ebitda + ebitdaDelta) / base.vn, rl: base.rl + ebitdaDelta * 0.785 };
-            }),
-          };
-        } else {
-          variables[v.key] = {
-            label: v.label, unit: v.unit || "pp", base_rate: baseRates[v.key],
-            steps: STEPS_STD.map(delta => {
-              const r = { ...baseRates, [v.key]: baseRates[v.key] + delta };
-              return { delta, rate: r[v.key], ...calc2025(r.vol, r.preco, r.fse, r.pessoal, r.cmvmc) };
             }),
           };
         }
@@ -618,49 +608,14 @@ const API = (() => {
       return { base, variables };
     }
 
-    // Live: base run + todas as combinações variável×passo em paralelo
-    const knownBase = { vol: 0.030, preco: 0.030, fse: 0.030, pessoal: 0.035, cmvmc: 0.030 };
-    const baseRunR = await fetch(BACKEND_URL + "/api/run", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cenario, hub_on, ecogres_on }),
-    });
-    if (!baseRunR.ok) throw new Error("Erro na API");
-    const baseData = await baseRunR.json();
-    const baseDR = normalizeDR(baseData.outputs.dr || []);
-    const r25b = baseDR.find(d => d.year === 2025) || baseDR[1] || {};
-    const base = { vn: r25b.vn, ebitda: r25b.ebitda, margem_ebitda: (r25b.vn > 0 ? r25b.ebitda / r25b.vn : 0), rl: r25b.rl };
-
-    const allPromises = VARS.flatMap(v => {
-      const steps = v.hubVar ? STEPS_HUB : STEPS_STD;
-      return steps.map(delta => {
-        const assumptions = v.hubVar
-          ? v.buildOverride(v.baseValue * (1 + delta))
-          : { [v.overrideKey]: { base_2025: knownBase[v.key] + delta } };
-        return fetch(BACKEND_URL + "/api/run", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ cenario, hub_on, ecogres_on, assumptions }),
-        })
-        .then(r => r.ok ? r.json() : Promise.reject(new Error("API error")))
-        .then(data => {
-          const dr = normalizeDR(data.outputs.dr || []);
-          const r25 = dr.find(d => d.year === 2025) || dr[1] || {};
-          return { key: v.key, delta, vn: r25.vn, ebitda: r25.ebitda, margem_ebitda: r25.vn > 0 ? r25.ebitda / r25.vn : 0, rl: r25.rl };
-        });
-      });
-    });
-    const allResults = await Promise.all(allPromises);
-    const variables = {};
-    for (const v of VARS) {
-      variables[v.key] = {
-        label: v.label,
-        unit: v.unit || "pp",
-        base_rate: v.hubVar ? v.baseValue : knownBase[v.key],
-        steps: allResults.filter(r => r.key === v.key).map(({ key: _k, ...rest }) => rest),
-      };
+    // Live: endpoint único — todos os runs acontecem no backend
+    const params = new URLSearchParams({ cenario, hub_on: String(hub_on), ecogres_on: String(ecogres_on) });
+    const r = await fetch(BACKEND_URL + "/api/sensitivity?" + params);
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({ detail: r.statusText }));
+      throw new Error(err.detail || "Erro na API sensibilidade");
     }
-    return { base, variables };
+    return await r.json();
   }
 
   // ─── hubViabilidadeCenarios ────────────────────────────────────────────────

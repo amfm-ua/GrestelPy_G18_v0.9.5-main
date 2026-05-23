@@ -362,7 +362,10 @@ class Assumptions:
         return float(self.pessoal_params.get("taxa_cresc_custo_2025", 0.0))
 
     def inflacao_mensal_2025(self) -> list[float]:
-        return self.macro.get("inflacao", {}).get("mensal_2025", [0.022 / 12] * 12)
+        infl = self.macro.get("inflacao", {})
+        base = float(infl.get("anual", {}).get(2025, 0.023)) / 12
+        deltas = infl.get("mensal_2025_delta", [0.0] * 12)
+        return [base + float(d) for d in deltas]
 
     def inflacao_anual(self, ano: int) -> float:
         if ano == 2025:
