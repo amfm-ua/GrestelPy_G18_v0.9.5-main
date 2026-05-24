@@ -17,7 +17,8 @@
       "Bash(python/python.exe -c ' *)",
       "Read(//c/Users/amfmn/OneDrive - Universidade de Aveiro/PEF/M6/**)",
       "Bash(dir /S /B OE4*)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(python -c \"from src.engine.projetos.hub_logistico.impacto import hub_fcf; from src.engine.projetos.hub_logistico.viabilidade import viabilidade_hub; print\\('imports OK'\\)\")"
     ]
   }
 }

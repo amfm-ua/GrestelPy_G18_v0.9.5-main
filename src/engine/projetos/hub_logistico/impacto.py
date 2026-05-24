@@ -512,6 +512,13 @@ def hub_fcf(
     """
     proj = hub["projeto_hub"]
 
+    # PT2030: cash receipt replaces accrual recognition in FCFF.
+    # NCRF 22 spreads the subsidy over asset life (non-cash P&L), but the economic
+    # benefit arrives in full when cash is collected. Including both would double-count.
+    pt2030_cfg = proj["financiamento"]["PT2030"]
+    pt2030_montante = float(pt2030_cfg["montante"])
+    pt2030_ano_rec = int(pt2030_cfg["ano_recebimento"])
+
     dr_imp = hub_dr_impact(hub)
     df_cap = hub_capex(hub)
     nfm_map = hub_nfm(hub)
@@ -543,6 +550,12 @@ def hub_fcf(
         imp = dr_imp[y]
         ebit_y = float(imp["ebit_impact"])
 
+        # PT2030 accrual: non-cash income (subsídio diferido → P&L reclassification).
+        # Excluded from NOPAT; cash receipt counted separately in year of collection.
+        pt2030_accrual_y = float(imp.get("outros_rend_subsidio", 0.0))
+        ebit_fcf_y = ebit_y - pt2030_accrual_y
+        pt2030_cash_y = pt2030_montante if y == pt2030_ano_rec else 0.0
+
         inventario_y = float(imp["inventario_libertado"]) if incluir_inventario else 0.0
 
         # ΔNFM: saída de caixa real que reduz o FCF (não está na DR)
@@ -551,9 +564,8 @@ def hub_fcf(
         # Terreno: saída única no primeiro ano de CAPEX (custo de oportunidade)
         terreno_y = terreno_cof if (terreno_cof and y == terreno_ano) else 0.0
 
-        # NOPAT = EBIT × (1 − t); convenção: EBIT negativo → sem poupança fiscal
-        # (empresa não recebe cheque do Estado por prejuízo incremental do hub)
-        nopat = ebit_y * (1 - irc_taxa) if ebit_y > 0 else ebit_y
+        # NOPAT = EBIT_fcf × (1 − t); EBIT_fcf exclui reconhecimento PT2030 (não-caixa)
+        nopat = ebit_fcf_y * (1 - irc_taxa) if ebit_fcf_y > 0 else ebit_fcf_y
 
         # Crédito RFAI: deduzido directamente à colecta (não à matéria colectável).
         # Apresentado como linha separada de NOPAT para distinguir o benefício
@@ -561,21 +573,24 @@ def hub_fcf(
         # Decomposição: IRC_pago = EBIT×t − rfai_y → NOPAT_ef. = EBIT(1−t) + rfai_y
         rfai_y = rfai_map.get(y, 0.0)
 
-        # FCF = NOPAT + rfai_credito + D&A − CAPEX − ΔNFM + libertação inventário − terreno
-        fcf = nopat + rfai_y + dep_y - capex_y - delta_nfm_y + inventario_y - terreno_y
+        # FCF = NOPAT + rfai + D&A − CAPEX − ΔNFM + inventário − terreno + PT2030 cash
+        fcf = nopat + rfai_y + dep_y - capex_y - delta_nfm_y + inventario_y - terreno_y + pt2030_cash_y
 
         rows.append(
             {
                 "ano": y,
                 "ebitda_impact": imp["ebitda_impact"],
                 "ebit_impact": ebit_y,
+                "pt2030_accrual": pt2030_accrual_y,
+                "ebit_fcf": ebit_fcf_y,
                 "nopat": nopat,
                 "rfai_credito": rfai_y,
                 "depreciacao": dep_y,
                 "capex": -capex_y,
-                "delta_nfm": -delta_nfm_y,          # negativo = saída de caixa
+                "delta_nfm": -delta_nfm_y,
                 "inventario_libertado": inventario_y,
-                "terreno_oportunidade": -terreno_y,  # negativo = saída de caixa
+                "terreno_oportunidade": -terreno_y,
+                "pt2030_cash": pt2030_cash_y,
                 "fcf_livre": fcf,
             }
         )

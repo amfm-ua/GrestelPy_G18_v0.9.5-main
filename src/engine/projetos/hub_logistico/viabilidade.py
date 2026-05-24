@@ -371,7 +371,13 @@ def viabilidade_hub(
     ext_rows = []
     g = float(proj["beneficios_anuais"]["crescimento_anual"])
 
-    ebitda_prev = ebitda_ultimo
+    # Strip PT2030 accrual before projecting into extension years:
+    # cash was received in 2027 — the non-cash recognition in 2029 must not compound forward.
+    pt2030_accrual_ultimo = (
+        float(df_fcf.loc[df_fcf.ano == ultimo_ano, "pt2030_accrual"].iloc[0])
+        if "pt2030_accrual" in df_fcf.columns else 0.0
+    )
+    ebitda_prev = ebitda_ultimo - pt2030_accrual_ultimo
 
     for k in range(1, horizonte - len(anos_modelo) + 1):
         y_ext = ultimo_ano + k
@@ -399,12 +405,16 @@ def viabilidade_hub(
                 "ano": y_ext,
                 "ebitda_impact": ebitda_ext,
                 "ebit_impact": ebit_ext,
+                "pt2030_accrual": 0.0,
+                "ebit_fcf": ebit_ext,
                 "nopat": nopat_ext,
                 "rfai_credito": rfai_ext,
                 "depreciacao": dep_ext,
                 "capex": 0.0,
                 "delta_nfm": 0.0,
                 "inventario_libertado": 0.0,
+                "terreno_oportunidade": 0.0,
+                "pt2030_cash": 0.0,
                 "fcf_livre": fcf_ext,
             }
         )
