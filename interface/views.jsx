@@ -611,16 +611,16 @@ function HubViabilidadeView({ ctx }) {
     <>
       {/* ── KPIs principais ─────────────────────────────────────────────── */}
       <div className="grid-4">
-        <KPI label={"VAL @ " + fmt.pct(wacc, 0)} value={fmt.eurC(viab.vpl)} tone={viab.vpl >= 0 ? "pos" : "neg"} sub={"horizonte 10 anos · VR ativos " + fmt.eurC(viab.valor_residual_ativos || 0) + " + NFM " + fmt.eurC(viab.nfm_recovery_terminal || 0)} />
-        <KPI label="TIR" value={viab.tir != null ? fmt.pct(viab.tir, 1) : "—"} tone={viab.tir != null && viab.tir >= wacc ? "pos" : "neg"} sub={"vs WACC " + fmt.pct(wacc, 0)} />
+        <KPI label={"VAL @ " + fmt.pct(wacc, 1)} value={fmt.eurC(viab.vpl)} tone={viab.vpl >= 0 ? "pos" : "neg"} sub={"horizonte 10 anos · VR ativos " + fmt.eurC(viab.valor_residual_ativos || 0) + " + NFM " + fmt.eurC(viab.nfm_recovery_terminal || 0)} />
+        <KPI label="TIR" value={viab.tir != null ? fmt.pct(viab.tir, 1) : "—"} tone={viab.tir != null && viab.tir >= wacc ? "pos" : "neg"} sub={"vs WACC " + fmt.pct(wacc, 1)} />
         <KPI label="Payback simples" value={fmtPayback(viab.payback_simples)} sub="anos a partir de 2024" />
-        <KPI label="Payback actualizado" value={fmtPayback(viab.payback_atualizado)} sub={"descontado a " + fmt.pct(wacc, 0)} />
+        <KPI label="Payback actualizado" value={fmtPayback(viab.payback_atualizado)} sub={"descontado a " + fmt.pct(wacc, 1)} />
       </div>
 
       {/* ── FCF ─────────────────────────────────────────────────────────── */}
       <Panel
         title="Fluxos de caixa livres · Hub Logístico 4.0 (M6)"
-        sub={"CAPEX " + fmt.eurC(p.capex_base || 6000000) + " · poupança operacional " + fmt.eurC(p.poupanca_operacional || 480000) + "/ano · WACC " + fmt.pct(wacc, 0)}
+        sub={"CAPEX " + fmt.eurC(p.capex_base || 6000000) + " · poupança operacional " + fmt.eurC(p.poupanca_operacional || 480000) + "/ano · WACC " + fmt.pct(wacc, 1)}
       >
         <LineChart series={fcfSeries} height={280} />
         <div className="legend" style={{ marginTop: 8 }}>
@@ -669,15 +669,14 @@ function HubViabilidadeView({ ctx }) {
             <KV k="CAPEX base" v={fmt.eurC(p.capex_base || 3800000)} />
             <KV k="Cronograma 2025" v={fmt.eurC(p.capex_2025 || 2280000)} />
             <KV k="Cronograma 2026" v={fmt.eurC(p.capex_2026 || 1520000)} />
-            <KV k="WACC" v={fmt.pct(wacc, 0)} />
+            <KV k="WACC" v={fmt.pct(wacc, 1)} />
             <KV k="IRC taxa" v={fmt.pct(p.irc_taxa || 0.245, 1)} />
-            <KV k="Crescimento terminal" v={fmt.pct(p.crescimento_terminal || 0.02, 0)} />
             <KV k="Horizonte" v={(p.horizonte_anos || 10) + " anos"} />
             <KV k="Poupança operacional" v={fmt.eurC(p.poupanca_operacional || 380000) + " / ano"} />
             <KV k="Redução quebras" v={fmt.eurC(p.reducao_quebras || 50000) + " / ano"} />
             <KV k="OPEX incremental" v={"− " + fmt.eurC(p.opex_incremental || 120000) + " / ano"} />
             <KV k="Benefício líquido base" v={fmt.eurC(p.beneficio_liquido_anual || 310000) + " / ano"} />
-            <KV k="Crescimento benefícios" v={"+" + fmt.pct(p.crescimento_anual || 0.04, 0) + " / ano"} />
+            <KV k="Crescimento benefícios" v={"+" + fmt.pct(p.crescimento_anual || 0.04, 1) + " / ano"} />
             <KV k="Libertação inventário 2026" v={fmt.eurC(p.libertacao_inventario || 2000000)} />
             {p.emprestimos
               ? Object.entries(p.emprestimos).map(([nome, tr]) => (
@@ -1306,7 +1305,7 @@ function HubOE4View({ ctx }) {
   return (
     <>
       <div className="grid-4">
-        <KPI label="CAPEX total"      value={fmt.eurC(totalCapex)} sub={"2025 " + fmt.eurC(im.sintese?.capex_base / 2) + " · 2026 " + fmt.eurC(im.sintese?.capex_base / 2)} />
+        <KPI label="CAPEX total"      value={fmt.eurC(totalCapex)} sub={capexByYear.map(y => y.ano + " " + fmt.eurC(y.capex)).join(" · ")} />
         <KPI label="Capital alheio"   value={fmt.eurC(emprestimo)} sub={
           (im.emprestimos || []).map(t => t.nome.replace(/_/g, " ") + " " + fmt.eurC(t.montante)).join(" · ") || "Banco Hub · Linha BEI"
         } />
