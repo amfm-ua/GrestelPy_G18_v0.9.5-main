@@ -35,7 +35,16 @@
       "Bash(py -m pip install defusedxml -q)",
       "Bash(uv pip *)",
       "PowerShell($uvExe = \"$env:APPDATA\\\\uv\\\\bin\\\\uv.exe\"; if \\(Test-Path $uvExe\\) { & $uvExe pip install defusedxml --python \"C:\\\\Users\\\\amfmn\\\\AppData\\\\Roaming\\\\uv\\\\python\\\\cpython-3.12.11-windows-x86_64-none\\\\python.exe\" } else { Write-Host \"uv not found at $uvExe\" })",
-      "PowerShell(Get-ChildItem \"$env:LOCALAPPDATA\\\\uv\" -Recurse -Filter \"uv.exe\" -ErrorAction SilentlyContinue | Select-Object FullName; Get-ChildItem \"$env:APPDATA\\\\uv\" -Recurse -Filter \"uv.exe\" -ErrorAction SilentlyContinue | Select-Object FullName)"
+      "PowerShell(Get-ChildItem \"$env:LOCALAPPDATA\\\\uv\" -Recurse -Filter \"uv.exe\" -ErrorAction SilentlyContinue | Select-Object FullName; Get-ChildItem \"$env:APPDATA\\\\uv\" -Recurse -Filter \"uv.exe\" -ErrorAction SilentlyContinue | Select-Object FullName)",
+      "Bash(pandoc --track-changes=all OE04_G18_260525.docx -o /tmp/oe04_extracted.md)",
+      "Bash(python scripts/office/unpack.py OE04_G18_260525.docx /tmp/oe04_unpacked/)",
+      "Bash(python -m pytest tests/test_hub_viabilidade_cenarios.py tests/test_hub_investment_map.py -v)",
+      "Bash(python -m pip install pytest -q)",
+      "Bash(python -m pytest tests/test_hub_investment_map.py tests/test_hub_viabilidade_cenarios.py -v)",
+      "Bash(python -m pytest --tb=short -q)",
+      "Bash(python -m pytest tests/ -x --tb=short -q)",
+      "Bash(python -m pytest tests/ --tb=short -q)",
+      "Bash(python -m pytest tests/ -q)"
     ]
   }
 }
