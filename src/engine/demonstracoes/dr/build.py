@@ -314,6 +314,8 @@ def build_dr(
                     fse_cols_by_rubrica[rub]: -fse_det_by_year.get(y, {}).get(rub, 0.0)
                     for rub in fse_cols_by_rubrica.keys()
                 },
+                # Hub net FSE adjustment overrides the 0.0 set by expansion above
+                "hub_fse_ajuste_liq": hub_fse_red - hub_fse_opex,
                 "gastos_pessoal": -p,
                 "imparidades": -imp,
                 "outros_gastos": -out_gast,

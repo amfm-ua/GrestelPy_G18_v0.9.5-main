@@ -138,6 +138,11 @@ def _load_fse_contrato() -> tuple[dict[str, str], dict[str, str], dict[str, floa
 
 
 FSE_DETALHE_KEYS, FSE_DETALHE_LABELS, FSE_PCV = _load_fse_contrato()
+# Hub FSE net adjustment — captures hub opex and savings not in the base rubrica YAML.
+# Stored in the DR as hub_fse_ajuste_liq = hub_fse_reducao - hub_fse_opex (signed).
+FSE_DETALHE_KEYS["Hub_FSE_ajuste"] = "hub_fse_ajuste_liq"
+FSE_DETALHE_LABELS["Hub_FSE_ajuste"] = "Hub FSE ajustamento líquido"
+FSE_PCV["Hub_FSE_ajuste"] = 0.0
 
 
 def fse_rubricas_ordered() -> list[tuple[str, str, str]]:

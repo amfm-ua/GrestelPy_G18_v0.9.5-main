@@ -13,5 +13,7 @@ def test_fse_keys_exist_in_base_data():
 
     assert FSE_DETALHE_KEYS
     assert fse_rubricas_ordered()
-    assert all(rub in base_vals for rub in FSE_DETALHE_KEYS.keys())
+    # Hub_FSE_ajuste is computed at DR level, not a 2024 base measurement
+    yaml_keys = {k for k in FSE_DETALHE_KEYS.keys() if not k.startswith("Hub_")}
+    assert all(rub in base_vals for rub in yaml_keys)
 

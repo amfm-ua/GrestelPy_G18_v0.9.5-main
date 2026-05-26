@@ -9,7 +9,7 @@ from src.api.routes import get_scenarios_all
 def test_api_scenarios_structure():
     result = get_scenarios_all(hub_on=False, ecogres_on=False)
 
-    assert set(result.keys()) == {"Base", "Upside", "Downside", "Stress"}
+    assert set(result.keys()) == {"Base", "Upside", "Downside", "Stress", "Hub_Ativo"}
 
     for data in result.values():
         for key in (

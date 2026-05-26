@@ -311,7 +311,13 @@ def build_kpis(
             }
         )
 
-    return pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+    # Official API contract aliases (API_CONTRACT.md)
+    df["current_ratio"] = df["liquidez_geral"]
+    df["PMR"] = df["pmr_dias"]
+    df["PMP"] = df["pmp_dias"]
+    df["DMI"] = df["dmi_dias"]
+    return df
 
 
 def gas_por_peca_anual(a, base) -> pd.DataFrame:
