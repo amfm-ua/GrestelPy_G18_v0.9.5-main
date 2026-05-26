@@ -529,7 +529,7 @@ def hub_fcf(
     # Custo de oportunidade do terreno — saída única no primeiro ano de CAPEX
     # (UC API, Doc 3: ativos já detidos entram pelo custo de oportunidade; sem
     # este ajuste o investimento inicial fica subavaliado e o VAL artificialmente alto)
-    terreno_cfg = proj.get("capex", {}).get("terreno_custo_oportunidade", {})
+    terreno_cfg = proj.get("gastos_pre_operacionais", {}).get("terreno_custo_oportunidade", {})
     terreno_cof = 0.0
     terreno_ano: int | None = None
     if terreno_cfg.get("inclui_em_cfinv", False):

@@ -133,7 +133,7 @@ def _payback(cashflows: Sequence[float]) -> float | None:
 
         if prev_acum < 0 and acum >= 0 and t > 0:
             frac = (-prev_acum) / cf if cf else 0.0
-            return (t - 1) + frac
+            return t + frac
 
     return None
 
@@ -186,7 +186,7 @@ def _vlq_ativos(hub: dict, ano_fim: int) -> float:
 
     # Terreno — custo de oportunidade (UC API, Doc 3): não depreciável → valor
     # pleno recuperado no VR terminal, simétrico à saída registada em CFinv_t0.
-    terreno_cfg = proj.get("capex", {}).get("terreno_custo_oportunidade", {})
+    terreno_cfg = proj.get("gastos_pre_operacionais", {}).get("terreno_custo_oportunidade", {})
     if terreno_cfg.get("inclui_em_cfinv", False):
         vlq += float(terreno_cfg.get("valor", 0.0))
 

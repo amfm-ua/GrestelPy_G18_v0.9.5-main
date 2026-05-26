@@ -18,7 +18,24 @@
       "Read(//c/Users/amfmn/OneDrive - Universidade de Aveiro/PEF/M6/**)",
       "Bash(dir /S /B OE4*)",
       "Bash(python -c ' *)",
-      "Bash(python -c \"from src.engine.projetos.hub_logistico.impacto import hub_fcf; from src.engine.projetos.hub_logistico.viabilidade import viabilidade_hub; print\\('imports OK'\\)\")"
+      "Bash(python -c \"from src.engine.projetos.hub_logistico.impacto import hub_fcf; from src.engine.projetos.hub_logistico.viabilidade import viabilidade_hub; print\\('imports OK'\\)\")",
+      "Bash(git stash *)",
+      "Bash(git checkout *)",
+      "Read(//c/Users/amfmn/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/fb904275-65b1-4dde-83aa-d1b34cfa7063/381a1770-3887-457f-93e1-4af476e93b86/skills/xlsx/**)",
+      "Bash(python -)",
+      "Bash(Copy-Item \"C:\\\\Users\\\\amfmn\\\\OneDrive - Universidade de Aveiro\\\\PEF\\\\M5✔️\\\\OE4🕐\\\\OE04_G18_260525.xlsx\" \"C:\\\\Users\\\\amfmn\\\\AppData\\\\Local\\\\Temp\\\\OE04_audit.xlsx\" -Force)",
+      "Bash(extract-text \"C:\\\\Users\\\\amfmn\\\\OneDrive - Universidade de Aveiro\\\\PEF\\\\M5✔️\\\\OE4🕐\\\\OE04_G18_260525.xlsx\")",
+      "Bash(python)",
+      "Bash(python scripts/recalc.py \"C:\\\\Users\\\\amfmn\\\\OneDrive - Universidade de Aveiro\\\\PEF\\\\M5✔️\\\\OE4🕐\\\\OE04_G18_260525_v2.xlsx\" 60)",
+      "Read(//c/Users/amfmn/AppData/Roaming/Claude/local-agent-mode-sessions/skills-plugin/fb904275-65b1-4dde-83aa-d1b34cfa7063/381a1770-3887-457f-93e1-4af476e93b86/skills/docx/**)",
+      "Bash(python scripts/office/unpack.py \"C:\\\\Users\\\\amfmn\\\\OneDrive - Universidade de Aveiro\\\\PEF\\\\M5✔️\\\\OE4🕐\\\\OE04_G18_260525.docx\" unpacked/)",
+      "Bash(pip install *)",
+      "Bash(python -m pip install defusedxml -q)",
+      "Bash(python -c \"import sys; print\\(sys.executable\\)\")",
+      "Bash(py -m pip install defusedxml -q)",
+      "Bash(uv pip *)",
+      "PowerShell($uvExe = \"$env:APPDATA\\\\uv\\\\bin\\\\uv.exe\"; if \\(Test-Path $uvExe\\) { & $uvExe pip install defusedxml --python \"C:\\\\Users\\\\amfmn\\\\AppData\\\\Roaming\\\\uv\\\\python\\\\cpython-3.12.11-windows-x86_64-none\\\\python.exe\" } else { Write-Host \"uv not found at $uvExe\" })",
+      "PowerShell(Get-ChildItem \"$env:LOCALAPPDATA\\\\uv\" -Recurse -Filter \"uv.exe\" -ErrorAction SilentlyContinue | Select-Object FullName; Get-ChildItem \"$env:APPDATA\\\\uv\" -Recurse -Filter \"uv.exe\" -ErrorAction SilentlyContinue | Select-Object FullName)"
     ]
   }
 }
