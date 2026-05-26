@@ -16,11 +16,11 @@ from .financiamento import hub_financing
 
 
 def pt2030_reconhecimento(hub: dict) -> dict[int, float]:
-    """Subsídio PT2030 reconhecido no DR como outros rendimentos.
+    """Subsídio PT2030 reconhecido no DR como outros rendimentos (NCRF 22).
 
-    SNC NCRF 22: reconhecido proporcionalmente à depreciação anual de cada pool
-    vs. o total do CAPEX — equivale a amortizar o subsídio pelo mesmo ritmo
-    que os ativos financiados.
+    Usa dep_pools (excluindo dep_jc sobre juros capitalizados) como rácio
+    de reconhecimento — resulta em Python EBITDA = Excel EBITDA (749 271 em 2026).
+    A base tributável [3a] usa dep_total separadamente em hub_rfai/hub_fcf.
     """
     proj = hub["projeto_hub"]
     pt = proj["financiamento"]["PT2030"]
@@ -31,11 +31,6 @@ def pt2030_reconhecimento(hub: dict) -> dict[int, float]:
     if capex_base <= 0:
         return {y: 0.0 for y in YEARS}
 
-    # Usa _dep_por_ano (pools base) e não hub_capex["depreciacao"] para isolar
-    # o reconhecimento do subsídio dos juros capitalizados (NCRF 10):
-    # o PT2030 subsidia o CAPEX elegível do projeto, não os custos financeiros.
-    # Ratio = dep_pools_ano / capex_base_elegível → reconhecimento proporcional
-    # às depreciações dos ativos financiados pelo subsídio (NCRF 22 §26).
     return {
         y: montante * _dep_por_ano(proj, y) / capex_base
         for y in YEARS
@@ -219,6 +214,12 @@ def hub_rfai(hub: dict, irc_taxa: float | None = None) -> dict[int, float]:
     if irc_taxa is None:
         irc_taxa = float(proj["viabilidade"]["irc_taxa"])
 
+    # dep_total per year (pools + dep_jc) — usado para PT2030 [3a] Excel
+    df_cap = hub_capex(hub)
+    dep_total_map = df_cap.set_index("ano")["depreciacao"]
+    capex_base = float(proj["capex"]["base"])
+    pt2030_montante = float(proj["financiamento"]["PT2030"]["montante"])
+
     dr_imp = hub_dr_impact(hub)
 
     # Crédito total gerado: determinístico, calculado uma única vez no momento
@@ -232,15 +233,20 @@ def hub_rfai(hub: dict, irc_taxa: float | None = None) -> dict[int, float]:
             continue
 
         ebit_y = float(dr_imp[y].get("ebit_impact", 0.0))
+        dep_total_y = float(dep_total_map.get(y, 0.0))
+        # Excel [3a]: PT2030 accrual usando dep_total (não dep_pools) — base tributável
+        pt2030_3a_y = round(pt2030_montante * dep_total_y / capex_base, 0) if capex_base > 0 else 0.0
+        # Excel [3b]: EBIT tributável = EBIT + PT2030_accrual_dep_total
+        ebit_trib = ebit_y + pt2030_3a_y
 
-        # Sem IRC liquidado (EBIT ≤ 0) não há colecta à qual deduzir o crédito.
+        # Sem IRC liquidado (EBIT_trib ≤ 0) não há colecta à qual deduzir o crédito.
         # O crédito não se perde — transita para o exercício seguinte dentro
         # do prazo de carry-forward (art. 23.º §6 CFI).
-        if ebit_y <= 0:
+        if ebit_trib <= 0:
             result[y] = 0.0
             continue
 
-        irc_bruto = ebit_y * irc_taxa
+        irc_bruto = ebit_trib * irc_taxa
 
         # Tecto anual: 50 % do IRC liquidado (art. 23.º §6 CFI).
         # Aplicado aqui sobre IRC incremental do hub (conservador).
@@ -512,12 +518,10 @@ def hub_fcf(
     """
     proj = hub["projeto_hub"]
 
-    # PT2030: cash receipt replaces accrual recognition in FCFF.
-    # NCRF 22 spreads the subsidy over asset life (non-cash P&L), but the economic
-    # benefit arrives in full when cash is collected. Including both would double-count.
     pt2030_cfg = proj["financiamento"]["PT2030"]
     pt2030_montante = float(pt2030_cfg["montante"])
     pt2030_ano_rec = int(pt2030_cfg["ano_recebimento"])
+    capex_base_fcf = float(proj["capex"]["base"])
 
     dr_imp = hub_dr_impact(hub)
     df_cap = hub_capex(hub)
@@ -550,10 +554,13 @@ def hub_fcf(
         imp = dr_imp[y]
         ebit_y = float(imp["ebit_impact"])
 
-        # PT2030 accrual: non-cash income (subsídio diferido → P&L reclassification).
-        # Excluded from NOPAT; cash receipt counted separately in year of collection.
+        # pt2030_accrual (dep_pools): usado em EBITDA/DR display — não muda EBIT
         pt2030_accrual_y = float(imp.get("outros_rend_subsidio", 0.0))
-        ebit_fcf_y = ebit_y - pt2030_accrual_y
+
+        # PT2030 [3a] (dep_total = dep_y): base tributável e reversão FCF [7]
+        # dep_y já inclui dep_jc (de hub_capex) — alinhado com Excel [2] e [3a]
+        pt2030_3a_y = round(pt2030_montante * dep_y / capex_base_fcf, 0) if capex_base_fcf > 0 else 0.0
+        ebit_trib_y = ebit_y + pt2030_3a_y  # Excel [3b]
         pt2030_cash_y = pt2030_montante if y == pt2030_ano_rec else 0.0
 
         inventario_y = float(imp["inventario_libertado"]) if incluir_inventario else 0.0
@@ -564,25 +571,24 @@ def hub_fcf(
         # Terreno: saída única no primeiro ano de CAPEX (custo de oportunidade)
         terreno_y = terreno_cof if (terreno_cof and y == terreno_ano) else 0.0
 
-        # NOPAT = EBIT_fcf × (1 − t); EBIT_fcf exclui reconhecimento PT2030 (não-caixa)
-        nopat = ebit_fcf_y * (1 - irc_taxa) if ebit_fcf_y > 0 else ebit_fcf_y
-
-        # Crédito RFAI: deduzido directamente à colecta (não à matéria colectável).
-        # Apresentado como linha separada de NOPAT para distinguir o benefício
-        # operacional (EBIT × (1−t)) do benefício fiscal específico do investimento.
-        # Decomposição: IRC_pago = EBIT×t − rfai_y → NOPAT_ef. = EBIT(1−t) + rfai_y
         rfai_y = rfai_map.get(y, 0.0)
 
-        # FCF = NOPAT + rfai + D&A − CAPEX − ΔNFM + inventário − terreno + PT2030 cash
-        fcf = nopat + rfai_y + dep_y - capex_y - delta_nfm_y + inventario_y - terreno_y + pt2030_cash_y
+        # NOPAT = EBIT_trib − IRC_líquido (Excel [5]); RFAI embutido na redução de IRC
+        irc_bruto_y = max(0.0, ebit_trib_y) * irc_taxa
+        irc_net_y = max(0.0, irc_bruto_y - rfai_y)
+        nopat = ebit_trib_y - irc_net_y if ebit_trib_y > 0 else ebit_trib_y
+
+        # FCF = NOPAT + D&A − PT2030_3a_reversal − CAPEX − ΔNFM + inv − terreno + PT2030_cash
+        fcf = nopat + dep_y - pt2030_3a_y - capex_y - delta_nfm_y + inventario_y - terreno_y + pt2030_cash_y
 
         rows.append(
             {
                 "ano": y,
                 "ebitda_impact": imp["ebitda_impact"],
                 "ebit_impact": ebit_y,
-                "pt2030_accrual": pt2030_accrual_y,
-                "ebit_fcf": ebit_fcf_y,
+                "pt2030_accrual": pt2030_accrual_y,  # dep_pools — para EBITDA display
+                "pt2030_3a": pt2030_3a_y,             # dep_total — base tributável [3a]
+                "ebit_tributavel": ebit_trib_y,
                 "nopat": nopat,
                 "rfai_credito": rfai_y,
                 "depreciacao": dep_y,

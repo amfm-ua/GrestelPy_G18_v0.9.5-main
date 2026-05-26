@@ -83,10 +83,10 @@ def _npv_variable_wacc(
 
 
 def _npv(cashflows: Sequence[float], rate: float) -> float:
-    """Valor Presente Líquido."""
+    """Valor Presente Líquido — convenção fim-de-período (NPV Excel, t=1 para CF[0])."""
     return sum(
         cf / (1 + rate) ** t
-        for t, cf in enumerate(cashflows)
+        for t, cf in enumerate(cashflows, start=1)
     )
 
 
@@ -370,46 +370,58 @@ def viabilidade_hub(
 
     ext_rows = []
     g = float(proj["beneficios_anuais"]["crescimento_anual"])
+    pt2030_montante_ext = float(proj["financiamento"]["PT2030"]["montante"])
+    capex_base_ext = float(proj["capex"]["base"])
 
-    # Strip PT2030 accrual before projecting into extension years:
-    # cash was received in 2027 — the non-cash recognition in 2029 must not compound forward.
-    pt2030_accrual_ultimo = (
-        float(df_fcf.loc[df_fcf.ano == ultimo_ano, "pt2030_accrual"].iloc[0])
-        if "pt2030_accrual" in df_fcf.columns else 0.0
-    )
-    ebitda_prev = ebitda_ultimo - pt2030_accrual_ultimo
+    # dep_jc anual para extensão: JC_total / vida_útil construção (NCRF 10)
+    jc_map_ext = _juros_capitalizados_map(hub)
+    jc_total_ext = sum(jc_map_ext.values())
+    vida_jc_ext = int(proj["capex"]["pools"]["construcao_civil"]["vida_util_anos"]) if "construcao_civil" in proj["capex"]["pools"] else 25
+    dep_jc_anual = jc_total_ext / vida_jc_ext if vida_jc_ext > 0 else 0.0
+
+    # Projeta o EBITDA completo (inclui PT2030 dep_pools) — alinhado com Excel
+    # que cresce [1] EBITDA total × (1+g) sem stripping do accrual subsídio.
+    ebitda_prev = ebitda_ultimo
 
     for k in range(1, horizonte - len(anos_modelo) + 1):
         y_ext = ultimo_ano + k
 
         ebitda_ext = ebitda_prev * (1 + g)
-        dep_ext = _dep_por_ano(proj, y_ext)
-        ebit_ext = ebitda_ext - dep_ext
+        dep_pools_ext = _dep_por_ano(proj, y_ext)
+        dep_total_ext = dep_pools_ext + dep_jc_anual  # inclui dep_jc (NCRF 10)
+        ebit_ext = ebitda_ext - dep_total_ext
+
+        # PT2030 [3a] em extensão: dep_total / capex_base × montante (Excel [3a])
+        pt2030_3a_ext = (
+            round(pt2030_montante_ext * dep_total_ext / capex_base_ext, 0)
+            if capex_base_ext > 0 else 0.0
+        )
+        ebit_trib_ext = ebit_ext + pt2030_3a_ext  # Excel [3b]
 
         # RFAI carry-forward: aplica o saldo remanescente de exercícios anteriores.
-        # O tecto de 50 % é recalculado sobre o IRC incremental do ano de extensão
-        # (mesma lógica conservadora de hub_rfai). O saldo decresce a cada ano
-        # de absorção até esgotar ou expirar o prazo legal de carry-forward.
+        # Base tributável = EBIT_trib (alinhado com Excel folha 10 [3b]).
         rfai_ext = 0.0
-        irc_bruto_ext = max(ebit_ext, 0.0) * irc_taxa
+        irc_bruto_ext = max(0.0, ebit_trib_ext) * irc_taxa
         if rfai_restante_ext > 0 and irc_bruto_ext > 0:
             rfai_ext = min(rfai_restante_ext, rfai_limite_pct_ext * irc_bruto_ext)
             rfai_restante_ext -= rfai_ext
 
-        # NOPAT com RFAI: crédito absorvido neste exercício aumenta o caixa fiscal
-        nopat_ext = max(ebit_ext, 0.0) * (1 - irc_taxa) + rfai_ext
-        fcf_ext = nopat_ext + dep_ext
+        # NOPAT = EBIT_trib − IRC_líquido (Excel [5]); PT2030 [7] revertido no FCF
+        irc_net_ext = max(0.0, irc_bruto_ext - rfai_ext)
+        nopat_ext = ebit_trib_ext - irc_net_ext if ebit_trib_ext > 0 else ebit_trib_ext
+        fcf_ext = nopat_ext + dep_total_ext - pt2030_3a_ext
 
         ext_rows.append(
             {
                 "ano": y_ext,
                 "ebitda_impact": ebitda_ext,
                 "ebit_impact": ebit_ext,
-                "pt2030_accrual": 0.0,
-                "ebit_fcf": ebit_ext,
+                "pt2030_accrual": pt2030_3a_ext,  # dep_total em extensão
+                "pt2030_3a": pt2030_3a_ext,
+                "ebit_tributavel": ebit_trib_ext,
                 "nopat": nopat_ext,
                 "rfai_credito": rfai_ext,
-                "depreciacao": dep_ext,
+                "depreciacao": dep_total_ext,
                 "capex": 0.0,
                 "delta_nfm": 0.0,
                 "inventario_libertado": 0.0,

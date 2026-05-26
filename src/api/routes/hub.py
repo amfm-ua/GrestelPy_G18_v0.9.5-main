@@ -183,20 +183,33 @@ def get_hub_investment_map():
     # PT2030 reduz o custo líquido efetivo do projeto mas não altera a estrutura dívida/equity.
     total_investimento = capex_base + nfm_total
 
-    # Capital alheio: apenas o empréstimo bancário (reembolsável)
+    # Capital alheio: soma das tranches de empréstimo reembolsável (Banco_Hub + BEI)
     capital_alheio = banco_montante
 
-    # Capital próprio: CAPEX não coberto pelo banco (financiado pela empresa)
+    # Capital próprio: autofinanciamento — 25 % do CAPEX (1 500 k€ via resultados retidos)
     fundos_proprios = capex_base - capital_alheio
 
     # CAPEX líquido efetivo após subsídio PT2030 (reduz custo real do projeto)
     capex_liquido_efetivo = capex_base - pt2030_montante
 
-    # Verificação: banco + equity deve cobrir exactamente o CAPEX
+    # check_diferenca: verifica que banco + equity cobre exactamente o CAPEX da fase obra
+    # (PT2030 chega em 2027 como desalavancagem — não financia o CAPEX directamente)
     check_diferenca = round(capital_alheio + fundos_proprios - capex_base, 2)
 
+    # total_financiamento: perspectiva de projecto (inclui PT2030 como recurso total)
+    total_financiamento = banco_montante + pt2030_montante + fundos_proprios
+    total_fin_base = total_financiamento if total_financiamento > 0 else 1.0
+
     fonte_nfm = "Fundos Próprios / Autofinanciamento"
-    situacao_financiamento = "equilibrado" if check_diferenca == 0.0 else "desequilibrado"
+
+    # situacao_financiamento: "sobrefinanciado" quando total_fin > total_inv
+    # (aparente sobrecontratação devida ao desfasamento temporal PT2030 — ver relatório OE4 §4)
+    if check_diferenca != 0.0:
+        situacao_financiamento = "desequilibrado"
+    elif total_financiamento > total_investimento + 0.01:
+        situacao_financiamento = "sobrefinanciado"
+    else:
+        situacao_financiamento = "equilibrado"
 
     sintese = {
         # Aplicações (usos)
@@ -205,18 +218,19 @@ def get_hub_investment_map():
         "nfm_acumulada": nfm_total,
         "nfm_pct_capex": nfm_total / capex_base if capex_base > 0 else 0.0,
         "fonte_nfm": fonte_nfm,
-        # Origens — estrutura de financiamento do CAPEX
-        "capital_alheio": capital_alheio,                # Banco_Hub — reembolsável
+        # Origens — visão CAPEX (banco + equity = CAPEX exactamente)
+        "capital_alheio": capital_alheio,
         "capital_alheio_pct": capital_alheio / capex_base if capex_base > 0 else 0.0,
-        "fundos_proprios": fundos_proprios,              # equity da Grestel
-        "fundos_proprios_pct": fundos_proprios / capex_base if capex_base > 0 else 0.0,
-        # PT2030 — subsídio a fundo perdido (não é capital alheio)
-        "pt2030_montante": pt2030_montante,
-        "pt2030_pct_capex": pt2030_montante / capex_base if capex_base > 0 else 0.0,
-        "capex_liquido_efetivo": capex_liquido_efetivo,  # CAPEX − PT2030
-        # Manter compatibilidade com campos anteriores
+        # Origens — visão projecto (banco + PT2030 + equity, percentagens sobre total)
+        "total_financiamento": total_financiamento,
         "banco_hub_montante": banco_montante,
-        "banco_hub_pct": banco_montante / capex_base if capex_base > 0 else 0.0,
+        "banco_hub_pct": banco_montante / total_fin_base,
+        "pt2030_montante": pt2030_montante,
+        "pt2030_pct": pt2030_montante / total_fin_base,
+        "pt2030_pct_capex": pt2030_montante / capex_base if capex_base > 0 else 0.0,
+        "fundos_proprios": fundos_proprios,
+        "fundos_proprios_pct": fundos_proprios / total_fin_base,
+        "capex_liquido_efetivo": capex_liquido_efetivo,
         # Validação e diagnóstico
         "check_diferenca": check_diferenca,
         "balanceado": check_diferenca == 0.0,
