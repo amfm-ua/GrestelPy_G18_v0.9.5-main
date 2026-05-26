@@ -396,20 +396,15 @@ def viabilidade_hub(
             round(pt2030_montante_ext * dep_total_ext / capex_base_ext, 0)
             if capex_base_ext > 0 else 0.0
         )
-        ebit_trib_ext = ebit_ext + pt2030_3a_ext  # Excel [3b]
-
-        # RFAI carry-forward: aplica o saldo remanescente de exercícios anteriores.
-        # Base tributável = EBIT_trib (alinhado com Excel folha 10 [3b]).
+        # PT2030 accrual e RFAI excluídos do FCF operacional — tratados no VALA
+        ebit_trib_ext = ebit_ext
         rfai_ext = 0.0
-        irc_bruto_ext = max(0.0, ebit_trib_ext) * irc_taxa
-        if rfai_restante_ext > 0 and irc_bruto_ext > 0:
-            rfai_ext = min(rfai_restante_ext, rfai_limite_pct_ext * irc_bruto_ext)
-            rfai_restante_ext -= rfai_ext
 
-        # NOPAT = EBIT_trib − IRC_líquido (Excel [5]); PT2030 [7] revertido no FCF
-        irc_net_ext = max(0.0, irc_bruto_ext - rfai_ext)
+        # NOPAT = EBIT − IRC (sem RFAI, sem PT2030 accrual na base tributável)
+        irc_bruto_ext = max(0.0, ebit_trib_ext) * irc_taxa
+        irc_net_ext = irc_bruto_ext
         nopat_ext = ebit_trib_ext - irc_net_ext if ebit_trib_ext > 0 else ebit_trib_ext
-        fcf_ext = nopat_ext + dep_total_ext - pt2030_3a_ext
+        fcf_ext = nopat_ext + dep_total_ext
 
         ext_rows.append(
             {

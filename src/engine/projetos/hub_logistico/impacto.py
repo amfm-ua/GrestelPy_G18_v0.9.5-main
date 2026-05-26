@@ -560,7 +560,8 @@ def hub_fcf(
         # PT2030 [3a] (dep_total = dep_y): base tributável e reversão FCF [7]
         # dep_y já inclui dep_jc (de hub_capex) — alinhado com Excel [2] e [3a]
         pt2030_3a_y = round(pt2030_montante * dep_y / capex_base_fcf, 0) if capex_base_fcf > 0 else 0.0
-        ebit_trib_y = ebit_y + pt2030_3a_y  # Excel [3b]
+        # PT2030 accrual e cash-in excluídos do FCF operacional — tratados no VALA
+        ebit_trib_y = ebit_y
         pt2030_cash_y = pt2030_montante if y == pt2030_ano_rec else 0.0
 
         inventario_y = float(imp["inventario_libertado"]) if incluir_inventario else 0.0
@@ -573,13 +574,13 @@ def hub_fcf(
 
         rfai_y = rfai_map.get(y, 0.0)
 
-        # NOPAT = EBIT_trib − IRC_líquido (Excel [5]); RFAI embutido na redução de IRC
+        # NOPAT = EBIT_trib − IRC (RFAI excluído do FCF operacional — tratado no VALA)
         irc_bruto_y = max(0.0, ebit_trib_y) * irc_taxa
-        irc_net_y = max(0.0, irc_bruto_y - rfai_y)
+        irc_net_y = irc_bruto_y
         nopat = ebit_trib_y - irc_net_y if ebit_trib_y > 0 else ebit_trib_y
 
-        # FCF = NOPAT + D&A − PT2030_3a_reversal − CAPEX − ΔNFM + inv − terreno + PT2030_cash
-        fcf = nopat + dep_y - pt2030_3a_y - capex_y - delta_nfm_y + inventario_y - terreno_y + pt2030_cash_y
+        # FCF operacional puro: sem PT2030 accrual, sem PT2030 cash-in, sem RFAI
+        fcf = nopat + dep_y - capex_y - delta_nfm_y + inventario_y - terreno_y
 
         rows.append(
             {
