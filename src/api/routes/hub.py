@@ -8,6 +8,7 @@ from src.engine.projetos.hub_logistico import (
     load as hub_load,
     tornado_hub,
     viabilidade_hub,
+    vala_hub,
     ponto_critico_hub,
     mapa_servico_divida,
     mapa_servico_divida_por_tranche,
@@ -324,6 +325,47 @@ def get_hub_comparativo(
             "dfc":    _wrap_rows(rec_com.get("dfc")),
             "kpis":   _wrap_rows(rec_com.get("kpis")),
         },
+    }
+
+
+@router.get("/hub/vala")
+def get_hub_vala(
+    cenario: str = Query("Base"),
+    irc_taxa: float = Query(None),
+):
+    """VALA — Valor Actualizado Líquido Ajustado (APV) do Hub Logístico.
+
+    Decompõe o valor do projeto nos quatro componentes APV:
+
+    ```
+    VALA = VAL_base(Ke) + Σ PV(escudo_fiscal_i × kd_i) + PV(PT2030_líq × rf) + PV(RFAI × rf)
+    ```
+
+    - **VAL_base**: FCFF puro (sem PT2030 em EBIT) descontado a Ke (CAPM).
+    - **Escudo Fiscal**: VA(juros_expensed × t) por tranche a kd_i (Miles-Ezzell 1980).
+    - **PT2030 líquido**: VA(cash-in 2027 − custo IRC NCRF 22) a rf=3,25 %.
+    - **RFAI**: VA(crédito fiscal sobre CAPEX elegível) a rf=3,25 %.
+
+    Retorna a decomposição completa por ano e por tranche, adequada para
+    o dashboard dinâmico e para reconciliação com a Folha 11_VALA do Excel.
+    """
+    hub = _hub_with_scenario(cenario)
+    result = vala_hub(hub, irc_taxa=irc_taxa)
+    return {
+        "cenario": cenario,
+        "vala": result["vala"],
+        "decomposicao": result["decomposicao"],
+        "val_base_ke": result["val_base_ke"],
+        "escudo_fiscal_total": result["escudo_fiscal_total"],
+        "escudo_fiscal_por_tranche": result["escudo_fiscal_por_tranche"],
+        "pv_pt2030_liquido": result["pv_pt2030_liquido"],
+        "pv_rfai": result["pv_rfai"],
+        "pt2030_net_por_ano": result["pt2030_net_por_ano"],
+        "rfai_por_ano": result["rfai_por_ano"],
+        "fcf_ajuste_pt2030_por_ano": result["fcf_ajuste_pt2030_por_ano"],
+        "val_wacc_referencia": result["val_wacc_referencia"],
+        "parametros": result["parametros"],
+        "nota_metodologica": result["nota_metodologica"],
     }
 
 

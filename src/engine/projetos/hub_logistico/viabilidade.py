@@ -19,7 +19,8 @@ from .base import (
     _kd_ponderado,
 )
 from .financiamento import hub_financing
-from .impacto import hub_fcf, hub_nfm
+from .impacto import hub_fcf, hub_nfm, hub_rfai
+from ...inputs import YEARS
 
 
 def _wacc_dinamico_por_ano(
@@ -798,3 +799,277 @@ def tornado_hub(
         .sort_values("impacto_total", ascending=False)
         .reset_index(drop=True)
     )
+
+
+def vala_hub(
+    hub: dict | None = None,
+    irc_taxa: float | None = None,
+    incluir_inventario: bool = True,
+) -> dict:
+    """APV — Valor Actualizado Líquido Ajustado do Hub Logístico (Folha 11_VALA).
+
+    VALA = VAL_base(Ke) + Σ PV(escudo_fiscal_i × kd_i) + PV(PT2030_líquido × rf) + PV(RFAI × rf)
+
+    Componentes
+    -----------
+    VAL_base(Ke)
+        FCFF puro — excluindo o reconhecimento NCRF 22 do PT2030 do EBIT —
+        descontado ao custo do capital próprio desalavancado (Ke, CAPM).
+        Ajuste por período: FCF_clean_y = FCF_hub_y − accrual_PT2030_y × (1 − t)
+        onde FCF_hub_y já vem de viabilidade_hub() (inclui valor terminal no
+        último fluxo). Cobre o horizonte completo 2025-2034.
+
+    Escudo Fiscal
+        VA(juros_expensed_y × irc_taxa) por tranche, descontado à taxa kd de
+        cada tranche (Miles-Ezzell 1980: o tax shield é tão arriscado quanto a
+        dívida subadjacente). Juros capitalizados (NCRF 10, 2025-2026) não
+        geram escudo corrente — o benefício chega via maior depreciação futura.
+        Horizonte: 2025-2034 (inclui amortizações da extensão).
+
+    PT2030 líquido
+        VA(cash-in 2027 − custo IRC NCRF 22) descontado a rf.
+        O subsídio recebido em 2027 é reconhecido na DR ao longo da vida útil
+        dos activos subsidiados (NCRF 22). Cada reconhecimento anual aumenta
+        o lucro tributável gerando um custo IRC = reconhecimento_y × irc_taxa.
+        PT2030_net_y = (+montante se y=2027) − dep_pools_y / capex × montante × t
+
+    RFAI
+        VA(crédito fiscal anual aplicado ao IRC) descontado a rf.
+        Crédito determinístico (10 % × CAPEX elegível = 600 k€) — risco
+        próximo de rf (único risco é a não-geração de IRC suficiente para
+        absorção, modelizado pelo limite 50 % × IRC_hub).
+
+    Referências
+    -----------
+    Myers, S.C. (1974). JoF 29(1). — Teoria APV.
+    Miles, J.A. & Ezzell, J.R. (1980). JoF 35(4). — Tax shields a kd.
+    Damodaran, A. (2002). Investment Valuation, 3.ª ed., §10.5.
+    """
+    if hub is None:
+        hub = load()
+
+    proj = hub["projeto_hub"]
+    via = proj["viabilidade"]
+
+    if irc_taxa is None:
+        irc_taxa = float(via.get("irc_taxa", 0.245))
+
+    ke = float(via.get("ke", 0.161794))
+    rf = float(via.get("rf", 0.0325))
+    horizonte = int(via.get("horizonte_anos", 10))
+
+    # ── Horizonte completo: YEARS + anos de extensão ─────────────────────────
+    # YEARS = [2025-2029]; horizonte = 10; extensão = [2030-2034]
+    ano_base = YEARS[0]  # 2025 — t=1 por convenção _npv()
+    todos_anos: list[int] = list(range(ano_base, ano_base + horizonte))
+
+    def _t(y: int) -> int:
+        """Período de desconto: t=1 para 2025 (convenção fim-de-período)."""
+        return y - ano_base + 1
+
+    # ── 1. VAL_base(Ke) ── FCFF puro descontado a Ke ─────────────────────────
+    # viabilidade_hub() com wacc=Ke fornece os FCF (incluindo extensão e VT).
+    # O FCF_hub inclui o reconhecimento NCRF 22 no EBIT (via hub_dr_impact),
+    # o que aumenta o IRC em accrual_y × irc_taxa. Removemos este efeito para
+    # isolar o FCFF operacional puro — o PT2030 é tratado separadamente abaixo.
+    res_via = viabilidade_hub(
+        hub, irc_taxa=irc_taxa, wacc=ke, incluir_inventario=incluir_inventario
+    )
+    df_fcf_full = res_via["fcf_df"]
+    cfs_com_vt = list(res_via["cashflows_val"])  # VT somado ao último CF
+    anos_via = list(df_fcf_full["ano"].astype(int))
+
+    # pt2030_accrual: dep_pools para YEARS; pt2030_3a (≈dep_pools, dep_jc=0) para extensão
+    accrual_map: dict[int, float] = dict(
+        zip(df_fcf_full["ano"].astype(int), df_fcf_full["pt2030_accrual"].astype(float))
+    )
+    ebit_map: dict[int, float] = dict(
+        zip(df_fcf_full["ano"].astype(int), df_fcf_full["ebit_impact"].astype(float))
+    )
+
+    cfs_clean: list[float] = []
+    fcf_ajuste_pt2030: dict[int, float] = {}
+    for y, fcf_y in zip(anos_via, cfs_com_vt):
+        accrual_y = accrual_map.get(y, 0.0)
+        ebit_y = ebit_map.get(y, 0.0)
+        # Remover lucro líquido do reconhecimento não-caixa do NOPAT:
+        #   FCF_hub = FCF_pure + accrual_y×(1-t)   [quando EBIT > 0]
+        #   ⇒ FCF_pure = FCF_hub − accrual_y×(1-t)
+        ajuste = accrual_y * (1.0 - irc_taxa) if (ebit_y > 0 and accrual_y > 0) else 0.0
+        cfs_clean.append(fcf_y - ajuste)
+        fcf_ajuste_pt2030[y] = round(ajuste, 2)
+
+    val_base = _npv(cfs_clean, ke)
+
+    # ── 2. Escudo Fiscal por tranche (Miles-Ezzell) ───────────────────────────
+    # Iteramos todos_anos manualmente para cobrir o horizonte completo,
+    # sem depender de hub_financing() que só cobre YEARS.
+    jc_cfg = proj.get("juros_capitalizaveis", {})
+    jc_ativo = bool(jc_cfg.get("capitalizar", False))
+    jc_ini = int(jc_cfg.get("ano_inicio_capitalizacao", 9999)) if jc_ativo else 9999
+    jc_fim = int(jc_cfg.get("ano_fim_capitalizacao", 0)) if jc_ativo else 0
+
+    escudo_por_tranche: dict[str, dict] = {}
+    total_escudo_fiscal = 0.0
+
+    for nome, tranche in _iter_emprestimos(proj):
+        capital = float(tranche["montante"])
+        kd_tr = float(tranche["taxa_juro"])
+        amort_anual = float(tranche["amortizacao_anual"])
+        inicio_amort = int(tranche["inicio_amortizacao"])
+        desembolso_ano = int(tranche["desembolso"])
+
+        saldo = 0.0
+        escudo_anual: dict[int, float] = {}
+
+        for y in todos_anos:
+            if y == desembolso_ano:
+                saldo = capital
+            juros_y = saldo * kd_tr
+            # Juros capitalizados (NCRF 10) não transitam pelo DR; sem escudo direto
+            jc_y = juros_y if (jc_ativo and jc_ini <= y <= jc_fim) else 0.0
+            juros_exp_y = max(juros_y - jc_y, 0.0)
+            # Amortização
+            amort_y = amort_anual if (y >= inicio_amort and saldo > 0) else 0.0
+            amort_y = min(amort_y, saldo)
+            saldo = max(saldo - amort_y, 0.0)
+            escudo_anual[y] = juros_exp_y * irc_taxa
+
+        pv_escudo = sum(
+            escudo_anual[y] / (1.0 + kd_tr) ** _t(y)
+            for y in todos_anos
+        )
+        escudo_por_tranche[nome] = {
+            "taxa_juro": kd_tr,
+            "pv_escudo_fiscal": round(pv_escudo, 2),
+            "escudo_por_ano": {
+                y: round(v, 2) for y, v in escudo_anual.items() if v > 0
+            },
+        }
+        total_escudo_fiscal += pv_escudo
+
+    # ── 3. PT2030 líquido: cash-in − custo IRC NCRF 22, VA a rf ──────────────
+    pt2030_cfg = proj["financiamento"]["PT2030"]
+    pt2030_montante = float(pt2030_cfg["montante"])
+    pt2030_ano_rec = int(pt2030_cfg["ano_recebimento"])
+    capex_base_val = float(proj["capex"]["base"])
+
+    pt2030_net_por_ano: dict[int, dict] = {}
+    for y in todos_anos:
+        # Reconhecimento NCRF 22 proporcional à dep_pools (excl. dep_jc)
+        dep_pools_y = _dep_por_ano(proj, y)
+        rec_y = (
+            pt2030_montante * dep_pools_y / capex_base_val
+            if capex_base_val > 0 else 0.0
+        )
+        custo_irc_y = rec_y * irc_taxa
+        cash_in_y = pt2030_montante if y == pt2030_ano_rec else 0.0
+        net_y = cash_in_y - custo_irc_y
+        pt2030_net_por_ano[y] = {
+            "cash_in": round(cash_in_y, 2),
+            "dep_pools": round(dep_pools_y, 2),
+            "reconhecimento_ncrf22": round(rec_y, 2),
+            "custo_irc": round(custo_irc_y, 2),
+            "net": round(net_y, 2),
+        }
+
+    pv_pt2030 = sum(
+        pt2030_net_por_ano[y]["net"] / (1.0 + rf) ** _t(y)
+        for y in todos_anos
+    )
+
+    # ── 4. RFAI: crédito fiscal anual, VA a rf ────────────────────────────────
+    rfai_map = hub_rfai(hub, irc_taxa=irc_taxa)  # apenas YEARS
+    rfai_por_ano = {y: round(rfai_map.get(y, 0.0), 2) for y in YEARS}
+
+    pv_rfai = sum(
+        rfai_por_ano[y] / (1.0 + rf) ** _t(y)
+        for y in YEARS
+    )
+
+    # ── 5. VALA ───────────────────────────────────────────────────────────────
+    vala = val_base + total_escudo_fiscal + pv_pt2030 + pv_rfai
+
+    # ── Metadados ─────────────────────────────────────────────────────────────
+    rfai_cfg = proj.get("rfai", {})
+    rfai_total_gerado = (
+        float(rfai_cfg.get("taxa", 0.0)) * float(rfai_cfg.get("capex_elegivel", 0.0))
+        if rfai_cfg.get("aplicar", False) else 0.0
+    )
+    rfai_aplicado = sum(rfai_por_ano.values())
+
+    return {
+        # ── Resultado principal ────────────────────────────────────────────────
+        "vala": round(vala, 2),
+        # ── Decomposição APV ──────────────────────────────────────────────────
+        "decomposicao": [
+            {
+                "componente": "VAL_base (Ke)",
+                "valor": round(val_base, 2),
+                "descricao": (
+                    f"FCFF puro (sem reconhecimento NCRF 22 em EBIT) "
+                    f"descontado a Ke={ke:.4%}. "
+                    "Horizonte 2025-2034 + valor terminal (VLQ + NFM)."
+                ),
+            },
+            {
+                "componente": "Escudo Fiscal",
+                "valor": round(total_escudo_fiscal, 2),
+                "descricao": (
+                    "PV(juros_expensed × irc_taxa) por tranche a kd_i "
+                    "(Miles-Ezzell). Exclui juros capitalizados 2025-2026 "
+                    "(NCRF 10 — sem escudo direto na DR)."
+                ),
+            },
+            {
+                "componente": "PT2030 líquido",
+                "valor": round(pv_pt2030, 2),
+                "descricao": (
+                    f"PV(+{pt2030_montante / 1e3:.0f} k€ cash {pt2030_ano_rec} "
+                    "− IRC sobre reconhecimentos NCRF 22) "
+                    f"a rf={rf:.2%}."
+                ),
+            },
+            {
+                "componente": "RFAI",
+                "valor": round(pv_rfai, 2),
+                "descricao": (
+                    f"PV({rfai_aplicado / 1e3:.1f} k€ crédito fiscal aplicado "
+                    f"de {rfai_total_gerado / 1e3:.0f} k€ gerado) "
+                    f"a rf={rf:.2%}."
+                ),
+            },
+        ],
+        # ── Valores individuais para dashboards ───────────────────────────────
+        "val_base_ke": round(val_base, 2),
+        "escudo_fiscal_total": round(total_escudo_fiscal, 2),
+        "escudo_fiscal_por_tranche": escudo_por_tranche,
+        "pv_pt2030_liquido": round(pv_pt2030, 2),
+        "pv_rfai": round(pv_rfai, 2),
+        # ── Detalhes por ano ───────────────────────────────────────────────────
+        "pt2030_net_por_ano": pt2030_net_por_ano,
+        "rfai_por_ano": rfai_por_ano,
+        "fcf_ajuste_pt2030_por_ano": fcf_ajuste_pt2030,
+        # ── Referência WACC (para confronto metodológico) ─────────────────────
+        "val_wacc_referencia": round(res_via.get("val", 0.0), 2),
+        # ── Parâmetros usados ─────────────────────────────────────────────────
+        "parametros": {
+            "ke": ke,
+            "rf": rf,
+            "irc_taxa": irc_taxa,
+            "horizonte_anos": horizonte,
+            "todos_anos": todos_anos,
+            "pt2030_montante": pt2030_montante,
+            "pt2030_ano_recebimento": pt2030_ano_rec,
+            "rfai_total_gerado": rfai_total_gerado,
+            "rfai_aplicado_horizonte": rfai_aplicado,
+            "capex_base": capex_base_val,
+        },
+        "nota_metodologica": (
+            "APV — Myers (1974). "
+            f"VAL_base a Ke={ke:.4%} (CAPM, β_l≈2,35, rf={rf:.2%}, ERP=5,5 %). "
+            "Escudo fiscal a kd por tranche (Miles-Ezzell 1980). "
+            f"PT2030 e RFAI a rf={rf:.2%} (fluxos quasi-determinísticos). "
+            "FCF base limpo de NCRF 22 — reconhecimento separado no componente PT2030."
+        ),
+    }
