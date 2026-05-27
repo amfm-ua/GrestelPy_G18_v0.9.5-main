@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api")
 @router.get("/scenarios/all")
 def get_scenarios_all(
     hub_on: bool = Query(False),
-    ecogres_on: bool = Query(False),
+    ecogres_on: bool = Query(True),
 ):
     """Corre todos os cen?rios e devolve DR/Balan?o/DFC/KPIs + detalhe FSE."""
     result = {}
@@ -53,7 +53,7 @@ def get_scenarios_all(
 def get_producao(
     cenario: str = Query("Base"),
     hub_on: bool = Query(False),
-    ecogres_on: bool = Query(False),
+    ecogres_on: bool = Query(True),
 ):
     """Orçamento de produção anual e mensal (2024-2029) com custos unitários reais do YAML."""
     dfs = run_model(cenario=cenario, hub_on=hub_on, ecogres_on=ecogres_on)
@@ -67,7 +67,7 @@ def get_producao(
 
 
 @router.get("/scenarios/hub-delta")
-def get_scenarios_hub_delta(ecogres_on: bool = Query(False)):
+def get_scenarios_hub_delta(ecogres_on: bool = Query(True)):
     """Impacto incremental do Hub em cada cenário: Δ EBITDA e Δ RL por ano."""
     result = {}
     for sc in _CENARIOS_COMPARACAO:
@@ -92,7 +92,7 @@ def get_scenarios_hub_delta(ecogres_on: bool = Query(False)):
 def get_sensitivity(
     cenario: str = Query("Base"),
     hub_on: bool = Query(False),
-    ecogres_on: bool = Query(False),
+    ecogres_on: bool = Query(True),
 ):
     """Análise de sensibilidade completa (one-at-a-time) — todos os runs no backend."""
     _ = ecogres_on  # reservado para uso futuro

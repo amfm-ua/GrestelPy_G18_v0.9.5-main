@@ -15,7 +15,7 @@ from src.engine.projetos.hub_logistico import (
     hub_capex,
     hub_nfm,
 )
-from src.engine.projetos.monte_carlo_hub import monte_carlo_hub
+from src.engine.projetos.monte_carlo_hub import monte_carlo_hub, monte_carlo_vala_hub
 from src.engine.projetos.ecogres import ecogres_dr, load as eco_load
 from src.engine.modelo.model import dataframe_to_records, run_model
 from src.engine.inputs.loader import _SCENARIO_OVERRIDES
@@ -369,6 +369,68 @@ def get_hub_vala(
     }
 
 
+@router.get("/hub/vala-sensibilidade")
+def get_hub_vala_sensibilidade(
+    cenario: str = Query("Base"),
+    irc_taxa: float = Query(None),
+):
+    """Matriz de sensibilidade fiscal do VALA — variação por driver fiscal.
+
+    Calcula o VALA (APV) para 6 cenários fiscais alternativos ao base:
+    - PT2030 reduzido a 30% do CAPEX
+    - Sem PT2030 (RFAI mantido)
+    - Sem PT2030 nem RFAI (apenas operações + escudo fiscal)
+    - IRC reduzido para 21%
+    - Kd +100 bps (aumento do custo da dívida)
+    """
+    hub_base = _hub_with_scenario(cenario)
+    proj = hub_base["projeto_hub"]
+    irc_eff = irc_taxa if irc_taxa is not None else float(proj["viabilidade"].get("irc_taxa", 0.245))
+    capex_base = float(proj["capex"]["base"])
+
+    def _run(hub_cfg, irc_t):
+        r = vala_hub(hub_cfg, irc_taxa=irc_t)
+        return {
+            "vala": r["vala"],
+            "val_base_ke": r["val_base_ke"],
+            "escudo_fiscal": r["escudo_fiscal_total"],
+            "pv_pt2030": r["pv_pt2030_liquido"],
+            "pv_rfai": r["pv_rfai"],
+        }
+
+    result = {}
+
+    result["base"] = {"label": "Base — PT2030=45%, RFAI, IRC=24,5%", **_run(hub_base, irc_eff)}
+
+    h = copy.deepcopy(hub_base)
+    h["projeto_hub"]["financiamento"]["PT2030"]["montante"] = capex_base * 0.30
+    result["pt2030_30pct"] = {"label": "PT2030 reduzido → 30% CAPEX", **_run(h, irc_eff)}
+
+    h = copy.deepcopy(hub_base)
+    h["projeto_hub"]["financiamento"]["PT2030"]["montante"] = 0.0
+    result["sem_pt2030"] = {"label": "Sem PT2030 (RFAI mantido)", **_run(h, irc_eff)}
+
+    h = copy.deepcopy(hub_base)
+    h["projeto_hub"]["financiamento"]["PT2030"]["montante"] = 0.0
+    h["projeto_hub"]["rfai"]["aplicar"] = False
+    result["sem_subsidios"] = {"label": "Sem PT2030 nem RFAI", **_run(h, irc_eff)}
+
+    result["irc_21pct"] = {"label": "IRC reduzido → 21%", **_run(hub_base, 0.21)}
+
+    h = copy.deepcopy(hub_base)
+    for v in h["projeto_hub"]["financiamento"].values():
+        if isinstance(v, dict) and "taxa_juro" in v and "amortizacao_anual" in v:
+            v["taxa_juro"] = float(v["taxa_juro"]) + 0.01
+    result["kd_plus100bps"] = {"label": "Kd +100 bps", **_run(h, irc_eff)}
+
+    return {
+        "cenario": cenario,
+        "irc_taxa_base": irc_eff,
+        "capex_base": capex_base,
+        "cenarios": result,
+    }
+
+
 @router.get("/hub/monte-carlo")
 def get_hub_monte_carlo(
     cenario: str = Query("Base"),
@@ -391,6 +453,47 @@ def get_hub_monte_carlo(
     """
     hub = _hub_with_scenario(cenario)
     return monte_carlo_hub(hub=hub, n_simulations=n, irc_taxa=irc_taxa, seed=seed)
+
+
+@router.get("/hub/monte-carlo-vala")
+def get_hub_monte_carlo_vala(
+    cenario: str = Query("Base"),
+    n: int = Query(1000, ge=100, le=5000, description="Número de simulações (100–5 000)"),
+    irc_taxa: float = Query(0.245, description="Taxa combinada de IRC (Derrama incluída)"),
+    seed: int = Query(None, description="Seed para reprodutibilidade"),
+    stress: bool = Query(True, description="Incluir stress tests fiscais determinísticos"),
+    pt2030_prob: float = Query(None, ge=0.0, le=1.0, description="Probabilidade de aprovação PT2030 (omitir = 0.75)"),
+):
+    """Monte Carlo do VALA (APV) com decomposição por componente e diagnóstico fiscal.
+
+    Estende o Monte Carlo base com três drivers estocásticos fiscais:
+    - **pt2030_approved**: Bernoulli — aprovação binária do PT2030
+    - **rfai_utilization**: Triangular[50%, 100%, 100%] — absorção do crédito RFAI
+    - **kd_shock**: Triangular[−100bps, 0, +200bps] — choque no spread bancário
+
+    Cada simulação devolve os quatro componentes APV:
+    ```
+    VALA = VAL_base(Ke) + Escudo_Fiscal + PV(PT2030_líq) + PV(RFAI)
+    ```
+
+    O campo `diagnostico` responde à pergunta-chave:
+    *"Em que % das simulações onde o projeto falha, o PT2030 não foi aprovado?"*
+
+    Os `stress_fiscal` são cenários determinísticos complementares:
+    PT2030 rejeitado, RFAI esgotado, IRC=28%.
+    """
+    hub = _hub_with_scenario(cenario)
+    dists: dict | None = None
+    if pt2030_prob is not None:
+        dists = {"pt2030_approved": {"type": "bernoulli", "p": pt2030_prob}}
+    return monte_carlo_vala_hub(
+        hub=hub,
+        n_simulations=n,
+        irc_taxa=irc_taxa,
+        seed=seed,
+        distributions=dists,
+        incluir_stress=stress,
+    )
 
 
 @router.get("/hub/consolidado")

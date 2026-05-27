@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from ...inputs import Assumptions, Base2024
 from ...projetos import ecogres as ecogres_mod
 
 
@@ -25,10 +26,10 @@ def _load_hub_dr(a: Assumptions) -> dict[int, dict] | None:
         return None
 
 
-def _load_ecogres() -> dict | None:
-    """Carrega os pressupostos da Ecogres apenas se ativa."""
+def _load_ecogres(a: Assumptions) -> dict | None:
+    """Carrega os pressupostos da Ecogres de a.raw se ativa em runtime."""
     try:
-        eco = ecogres_mod.load()
+        eco = a.raw.get("ecogres", {})
         if not eco or not eco.get("incluir_ecogres", False):
             return None
         return eco

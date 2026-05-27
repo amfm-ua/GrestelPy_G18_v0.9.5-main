@@ -47,7 +47,9 @@
       "Bash(python -m pytest tests/ -q)",
       "Bash(python _compare_outputs.py)",
       "Bash(python -X utf8 _compare_outputs.py)",
-      "Bash(python -X utf8 -m pytest tests/ -x -q)"
+      "Bash(python -X utf8 -m pytest tests/ -x -q)",
+      "Bash(python -c \"from src.api.routes.hub import router; print\\('hub router OK'\\)\")",
+      "Bash(python -c \"from src.api.routes.hub import router; routes = [r.path for r in router.routes]; print\\([r for r in routes if 'monte' in r]\\)\")"
     ]
   }
 }

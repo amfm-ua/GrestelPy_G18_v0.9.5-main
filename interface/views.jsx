@@ -516,6 +516,8 @@ function HubView({ ctx }) {
     { id: "viabilidade",  label: "Viabilidade" },
     { id: "monte_carlo",  label: "Monte Carlo" },
     { id: "oe4",          label: "Plano de Financiamento OE4" },
+    { id: "vala",         label: "VALA (APV)" },
+    { id: "contingencia", label: "Plano de Contingência" },
   ];
 
   return (
@@ -539,6 +541,12 @@ function HubView({ ctx }) {
       </div>
       <div style={{ display: subtab === "oe4" ? "contents" : "none" }}>
         {seen.oe4 && <HubOE4View ctx={ctx} />}
+      </div>
+      <div style={{ display: subtab === "vala" ? "contents" : "none" }}>
+        {seen.vala && <HubVALAView ctx={ctx} />}
+      </div>
+      <div style={{ display: subtab === "contingencia" ? "contents" : "none" }}>
+        {seen.contingencia && <HubContingenciaView ctx={ctx} />}
       </div>
     </>
   );
@@ -1080,6 +1088,9 @@ function HubMonteCarloView({ ctx }) {
   const [n, setN] = React.useState(1000);
   const [seed, setSeed] = React.useState(42);
   const [params, setParams] = React.useState({ n: 1000, seed: 42 });
+  const [mcVala, setMcVala] = React.useState(null);
+  const [loadingVala, setLoadingVala] = React.useState(true);
+  const [errorVala, setErrorVala] = React.useState(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -1088,6 +1099,16 @@ function HubMonteCarloView({ ctx }) {
     API.hubMonteCarlo({ cenario: ctx.scenario, n: params.n, seed: params.seed })
       .then(d => { if (!cancelled) { setMc(d); setLoading(false); } })
       .catch(err => { if (!cancelled) { setError(err.message || String(err)); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [ctx.scenario, params]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setLoadingVala(true);
+    setErrorVala(null);
+    API.hubMonteCarloVala({ cenario: ctx.scenario, n: params.n, seed: params.seed })
+      .then(d => { if (!cancelled) { setMcVala(d); setLoadingVala(false); } })
+      .catch(err => { if (!cancelled) { setErrorVala(err.message || String(err)); setLoadingVala(false); } });
     return () => { cancelled = true; };
   }, [ctx.scenario, params]);
 
@@ -1109,6 +1130,25 @@ function HubMonteCarloView({ ctx }) {
     eur_usd:               "Taxa de câmbio EUR/USD",
     crescimento_logistico: "Taxa de crescimento logístico",
   };
+
+  const valaDriverLabels = {
+    ...driverLabels,
+    pt2030_approved:  "Aprovação PT2030 (Bernoulli 75%)",
+    rfai_utilization: "Absorção crédito RFAI",
+    kd_shock:         "Choque spread bancário (Kd)",
+  };
+  const diag = mcVala?.diagnostico ?? {};
+  const corrVala = mcVala
+    ? Object.entries(mcVala.correlacoes_vala).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+    : [];
+  const valaComponents = mcVala ? [
+    { key: "val_base_ke",   label: "VAL_base (Ke)",  data: mcVala.val_base_ke },
+    { key: "escudo_fiscal", label: "Escudo Fiscal",   data: mcVala.escudo_fiscal },
+    { key: "pv_pt2030",    label: "PT2030 líquido",  data: mcVala.pv_pt2030 },
+    { key: "pv_rfai",      label: "RFAI",             data: mcVala.pv_rfai },
+    { key: "vala",         label: "VALA total",       data: mcVala.vala, bold: true },
+  ] : [];
+  const stressRows = mcVala ? Object.entries(mcVala.stress_fiscal) : [];
 
   return (
     <>
@@ -1239,6 +1279,122 @@ function HubMonteCarloView({ ctx }) {
           </tbody>
         </table>
       </Panel>
+
+      {/* ── VALA (APV) — Análise Estocástica ─────────────────────────────── */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "8px 0" }}>
+        <div style={{ flex: 1, height: 2, background: "var(--rule-strong)" }} />
+        <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.04em", whiteSpace: "nowrap" }}>
+          VALA (APV) — Distribuição Estocástica Desagregada
+        </span>
+        <div style={{ flex: 1, height: 2, background: "var(--rule-strong)" }} />
+      </div>
+
+      {loadingVala && !mcVala && (
+        <div style={{ textAlign: "center", padding: 28, color: "var(--muted)", fontSize: 13 }}>
+          A calcular VALA… (APV por iteração)
+        </div>
+      )}
+      {errorVala && !mcVala && (
+        <div style={{ padding: 12, color: "var(--neg)", fontSize: 12, border: "1px solid var(--neg)", borderRadius: 4 }}>
+          Erro VALA MC: {errorVala}
+        </div>
+      )}
+
+      {mcVala && <>
+        <div className="grid-4">
+          <KPI label="P(VALA > 0)"         value={fmt.pct(diag.prob_vala_positivo, 1)}                        tone="pos" sub="viabilidade APV total" />
+          <KPI label="P(VAL_base > 0)"     value={fmt.pct(diag.prob_val_base_positivo, 1)}                    sub="puro operacional · sem fiscal" />
+          <KPI label="P(VALA>0 | PT2030 ✓)" value={fmt.pct(diag.prob_vala_positivo_dado_pt2030_aprovado, 1)} tone="pos" sub="se PT2030 aprovado" />
+          <KPI label="P(VALA>0 | PT2030 ✗)" value={fmt.pct(diag.prob_vala_positivo_dado_pt2030_rejeitado, 1)} tone="neg" sub="se PT2030 rejeitado" />
+        </div>
+
+        <div className="grid-2-3">
+          <Panel title="Diagnóstico — Causa das Falhas" sub={`${diag.n_falhas} simulações com VALA < 0`}>
+            <div style={{ textAlign: "center", padding: "20px 0 16px" }}>
+              <div style={{ fontSize: 52, fontWeight: 800, lineHeight: 1, color: "var(--neg)", fontFamily: "var(--mono)" }}>
+                {fmt.pct(diag.pct_falhas_por_pt2030_rejeitado, 0)}
+              </div>
+              <div style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 8, lineHeight: 1.5, maxWidth: 220, margin: "8px auto 0" }}>
+                das falhas devem-se à rejeição do PT2030
+              </div>
+            </div>
+            <div style={{ borderTop: "1px solid var(--rule-strong)", paddingTop: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+              {[
+                { label: "Com PT2030 aprovado",       val: diag.prob_vala_positivo_dado_pt2030_aprovado,  pos: true  },
+                { label: "Com PT2030 rejeitado",      val: diag.prob_vala_positivo_dado_pt2030_rejeitado, pos: false },
+                { label: "Sem PT2030 e sem RFAI",    val: diag.prob_vala_sem_pt2030_positivo,             pos: false },
+              ].map(row => (
+                <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12 }}>
+                  <span style={{ color: "var(--muted)" }}>{row.label}</span>
+                  <span style={{ fontFamily: "var(--mono)", fontWeight: 700, color: row.pos ? "var(--pos)" : "var(--neg)" }}>
+                    {fmt.pct(row.val, 1)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </Panel>
+
+          <Panel title="Decomposição VALA — Percentis" sub="VAL_base(Ke) + Escudo Fiscal + PT2030 líquido + RFAI · P5 / médio / P95">
+            <table className="ftable ftable--dense">
+              <thead>
+                <tr>
+                  <th>Componente</th>
+                  <th className="mono num">P5</th>
+                  <th className="mono num">Médio</th>
+                  <th className="mono num">P95</th>
+                  <th className="mono num">P(&gt;0)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {valaComponents.map(({ key, label, data, bold }) => (
+                  <tr key={key} className={bold ? "is-subtotal" : ""}>
+                    <td>{label}</td>
+                    <td className="mono num">{fmt.eurC(data.p5)}</td>
+                    <td className="mono num">{fmt.eurC(data.mean)}</td>
+                    <td className="mono num">{fmt.eurC(data.p95)}</td>
+                    <td className="mono num">{fmt.pct(data.prob_positivo, 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Panel>
+        </div>
+
+        <Panel title="Stress Fiscal — Cenários Determinísticos" sub="3 cenários-limite sobre os drivers fiscais · VALA negativo indicado a vermelho">
+          <table className="ftable ftable--dense">
+            <thead>
+              <tr>
+                <th>Cenário</th>
+                <th className="mono num">VALA</th>
+                <th className="mono num">VAL_base (Ke)</th>
+                <th className="mono num">Escudo</th>
+                <th className="mono num">PV(PT2030)</th>
+                <th className="mono num">PV(RFAI)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stressRows.map(([sc, sv]) => (
+                <tr key={sc} className={sc === "base" ? "is-subtotal" : ""}>
+                  <td>{sv.label || sc}</td>
+                  <td className="mono num" style={{ color: sv.vala < 0 ? "var(--neg)" : undefined }}>{fmt.eurC(sv.vala)}</td>
+                  <td className="mono num">{fmt.eurC(sv.val_base_ke)}</td>
+                  <td className="mono num">{fmt.eurC(sv.escudo_fiscal)}</td>
+                  <td className="mono num">{fmt.eurC(sv.pv_pt2030)}</td>
+                  <td className="mono num">{fmt.eurC(sv.pv_rfai)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Panel>
+
+        <Panel
+          title="Correlação driver → VALA"
+          sub="Pearson r · inclui drivers fiscais adicionais (pt2030_approved, rfai_utilization, kd_shock)"
+          right={<Legend items={[{ label: "correlação positiva", color: "var(--pos)" }, { label: "correlação negativa", color: "var(--neg)" }]} />}
+        >
+          <HBarChart items={corrVala.map(([k, val]) => ({ label: valaDriverLabels[k] || k, value: val }))} />
+        </Panel>
+      </>}
     </>
   );
 }
@@ -1633,6 +1789,673 @@ function FundingCard({ label, value, pct, color, meta }) {
   );
 }
 
+// ---- Hub VALA (APV) dashboard -----------------------------------------------
+// Subtab 4: decomposição APV, comparativo VAL vs VALA, sensibilidade fiscal, semáforo.
+function HubVALAView({ ctx }) {
+  const [vala, setVala]   = React.useState(null);
+  const [viab, setViab]   = React.useState(null);
+  const [sens, setSens]   = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error,   setError]   = React.useState(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    Promise.all([
+      API.hubVala({ cenario: ctx.scenario }),
+      API.hubViability({ cenario: ctx.scenario }),
+      API.hubValaSensibilidade({ cenario: ctx.scenario }),
+    ])
+      .then(([v, vi, s]) => {
+        if (!cancelled) { setVala(v); setViab(vi); setSens(s); setLoading(false); }
+      })
+      .catch(err => { if (!cancelled) { setError(err.message || String(err)); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [ctx.scenario]);
+
+  if (loading && !vala) return <LoadingShell />;
+  if (error   && !vala) return <ErrorBanner message={error} onRetry={() => setError(null)} />;
+  if (!vala || !viab || !sens) return null;
+
+  const valaVal   = vala.vala;
+  const valWacc   = vala.val_wacc_referencia;
+  const params    = vala.parametros || {};
+  const cenarios  = sens.cenarios   || {};
+
+  // Waterfall items — bridge VAL_base → VALA
+  const wfItems = [
+    { label: "VAL base (Ke)",   value: vala.val_base_ke,        type: "total" },
+    { label: "+ Escudo Fiscal", value: vala.escudo_fiscal_total, type: "delta" },
+    { label: "+ PT2030 líquido",value: vala.pv_pt2030_liquido,  type: "delta" },
+    { label: "+ RFAI",          value: vala.pv_rfai,            type: "delta" },
+    { label: "VALA Total",      value: valaVal,                 type: "total" },
+  ];
+
+  // % attribution (APV view)
+  const pctOps = valaVal !== 0 ? vala.val_base_ke / valaVal : 0;
+  const pctFin = 1 - pctOps;
+
+  // Sensitivity table rows (ordered)
+  const sensList = [
+    { key: "base",          label: "Base (PT2030=45%, RFAI, IRC=24,5%)" },
+    { key: "pt2030_30pct",  label: "PT2030 reduzido → 30% CAPEX" },
+    { key: "sem_pt2030",    label: "Sem PT2030 (RFAI mantido)" },
+    { key: "sem_subsidios", label: "Sem PT2030 nem RFAI" },
+    { key: "irc_21pct",     label: "IRC reduzido → 21%" },
+    { key: "kd_plus100bps", label: "Kd +100 bps" },
+  ];
+  const baseVala = cenarios["base"]?.vala ?? valaVal;
+
+  // Semáforo thresholds
+  const semaforoItems = [
+    {
+      vala: cenarios["base"]?.vala ?? valaVal,
+      title: "PT2030 confirmado (45% CAPEX)",
+      desc:  "Subsídio PT2030 + RFAI + Escudo Fiscal aprovados na totalidade.",
+    },
+    {
+      vala: cenarios["pt2030_30pct"]?.vala ?? 0,
+      title: "PT2030 reduzido (30% CAPEX)",
+      desc:  "Aprovação parcial ou redução do montante subsidiado.",
+    },
+    {
+      vala: cenarios["sem_subsidios"]?.vala ?? vala.val_base_ke,
+      title: "Sem PT2030 nem RFAI",
+      desc:  "Projeto dependente apenas de operações e escudo fiscal da dívida.",
+    },
+  ];
+
+  function semaforoStatus(v) {
+    if (v >= 500_000) return "green";
+    if (v >= 0)       return "yellow";
+    return "red";
+  }
+
+  const dotOf   = s => s === "green" ? "🟢" : s === "yellow" ? "🟡" : "🔴";
+  const bgOf    = s => s === "green" ? "var(--pos-soft)" : s === "yellow" ? "oklch(0.96 0.08 80)" : "var(--neg-soft)";
+  const clrOf   = s => s === "green" ? "var(--pos)"     : s === "yellow" ? "oklch(0.50 0.12 70)"  : "var(--neg)";
+  const borderOf= s => s === "green" ? "1px solid var(--pos)" : s === "yellow" ? "1px solid oklch(0.65 0.14 70)" : "1px solid var(--neg)";
+
+  return (
+    <>
+      {/* ── KPI row ──────────────────────────────────────────────────────── */}
+      <div className="grid-4">
+        <KPI label="VALA (APV)"      value={fmt.eurC(valaVal)}                 tone={valaVal >= 0 ? "pos" : "neg"} sub="Myers 1974 · APV" />
+        <KPI label="VAL base (Ke)"   value={fmt.eurC(vala.val_base_ke)}        tone={vala.val_base_ke >= 0 ? "pos" : "neg"} sub={"Ke=" + fmt.pct(params.ke ?? 0, 2)} />
+        <KPI label="Escudo Fiscal"   value={fmt.eurC(vala.escudo_fiscal_total)} tone="pos" sub="Miles-Ezzell · kd por tranche" />
+        <KPI label="PT2030 + RFAI"   value={fmt.eurC((vala.pv_pt2030_liquido ?? 0) + (vala.pv_rfai ?? 0))} tone="pos" sub={"rf=" + fmt.pct(params.rf ?? 0, 2) + " · NCRF 22"} />
+      </div>
+
+      {/* ── Waterfall decomposition ──────────────────────────────────────── */}
+      <Panel
+        title="Decomposição APV — Bridge VALA"
+        sub="VALA = VAL base(Ke) + Escudo Fiscal + PT2030 líquido + RFAI"
+        right={<span className="chip-static mono">VALA {fmt.eurC(valaVal)}</span>}
+      >
+        <WaterfallChart items={wfItems} height={240} />
+        <table className="ftable ftable--dense" style={{ marginTop: 12 }}>
+          <thead>
+            <tr>
+              <th>Componente APV</th>
+              <th className="mono num">Valor (€)</th>
+              <th className="mono num">% |VALA|</th>
+              <th>Descrição</th>
+            </tr>
+          </thead>
+          <tbody>
+            {vala.decomposicao.map((c, i) => {
+              const pct = valaVal !== 0 ? c.valor / Math.abs(valaVal) : 0;
+              const tone = c.valor >= 0 ? "pos" : "neg";
+              return (
+                <tr key={i}>
+                  <td><b style={{ fontWeight: 500 }}>{c.componente}</b></td>
+                  <td className={"mono num " + tone}>{fmt.eur(c.valor)}</td>
+                  <td className={"mono num " + tone}>{fmt.pct(pct, 1)}</td>
+                  <td style={{ fontSize: 11.5, color: "var(--ink-2)" }}>{c.descricao}</td>
+                </tr>
+              );
+            })}
+            <tr className="is-total">
+              <td>VALA Total</td>
+              <td className={"mono num " + (valaVal >= 0 ? "pos" : "neg")}>{fmt.eur(valaVal)}</td>
+              <td className="mono num">100,0%</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </Panel>
+
+      {/* ── Comparativo VAL (WACC) vs VALA (APV) ────────────────────────── */}
+      <Panel
+        title="Comparativo VAL (WACC) vs. VALA (APV)"
+        sub="Confronto metodológico — dois métodos de avaliação do mesmo projeto"
+      >
+        <table className="ftable">
+          <thead>
+            <tr>
+              <th>Métrica</th>
+              <th className="mono num">VAL (WACC 7,3%)</th>
+              <th className="mono num">VALA (APV)</th>
+              <th className="mono num">Diferença</th>
+              <th>Nota</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b style={{ fontWeight: 500 }}>Valor do projeto</b></td>
+              <td className={"mono num " + (valWacc >= 0 ? "pos" : "neg")}>{fmt.eurC(valWacc)}</td>
+              <td className={"mono num " + (valaVal >= 0 ? "pos" : "neg")}>{fmt.eurC(valaVal)}</td>
+              <td className={"mono num " + ((valaVal - valWacc) >= 0 ? "pos" : "neg")}>{fmt.eurC(valaVal - valWacc)}</td>
+              <td className="muted" style={{ fontSize: 11.5 }}>WACC embute efeitos fiscais; APV decompõe-os</td>
+            </tr>
+            <tr>
+              <td>TIR</td>
+              <td className="mono num">{viab.tir != null ? fmt.pct(viab.tir, 2) : "—"}</td>
+              <td className="mono num muted">—</td>
+              <td className="mono num muted">—</td>
+              <td className="muted" style={{ fontSize: 11.5 }}>Calculada sobre FCF (WACC)</td>
+            </tr>
+            <tr>
+              <td>Payback simples</td>
+              <td className="mono num">{viab.payback_simples || "—"}</td>
+              <td className="mono num muted">—</td>
+              <td className="mono num muted">—</td>
+              <td className="muted" style={{ fontSize: 11.5 }}>FCF incremental</td>
+            </tr>
+            <tr>
+              <td>% viabilidade operacional</td>
+              <td className="mono num muted">Embutido no WACC</td>
+              <td className={"mono num " + (pctOps >= 0 ? "muted" : "neg")}>{fmt.pct(pctOps, 1)}</td>
+              <td className="mono num muted">—</td>
+              <td className="muted" style={{ fontSize: 11.5 }}>VAL_base(Ke) / VALA</td>
+            </tr>
+            <tr>
+              <td>% viabilidade por financiamento</td>
+              <td className="mono num muted">Embutido no WACC</td>
+              <td className="mono num pos">{fmt.pct(pctFin, 1)}</td>
+              <td className="mono num muted">—</td>
+              <td className="muted" style={{ fontSize: 11.5 }}>Escudo fiscal + PT2030 + RFAI</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style={{ marginTop: 10, padding: "8px 12px", background: "var(--surface-2)", borderRadius: 6, fontSize: 11, color: "var(--ink-2)", lineHeight: 1.5 }}>
+          <b>Metodologia:</b> {vala.nota_metodologica}
+        </div>
+      </Panel>
+
+      {/* ── Matriz de sensibilidade fiscal ───────────────────────────────── */}
+      <Panel
+        title="Matriz de Sensibilidade Fiscal"
+        sub="Impacto no VALA de variações nos benefícios fiscais e no custo da dívida"
+      >
+        <table className="ftable">
+          <thead>
+            <tr>
+              <th>Cenário fiscal</th>
+              <th className="mono num">VALA</th>
+              <th className="mono num">VAL_base(Ke)</th>
+              <th className="mono num">PT2030 liq.</th>
+              <th className="mono num">RFAI</th>
+              <th className="mono num">Escudo Fisc.</th>
+              <th className="mono num">Δ vs Base</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sensList.map(({ key, label }) => {
+              const sc = cenarios[key];
+              if (!sc) return null;
+              const isBase = key === "base";
+              const delta  = sc.vala - baseVala;
+              return (
+                <tr key={key} style={isBase ? { background: "var(--surface-2)" } : {}}>
+                  <td style={{ fontWeight: isBase ? 600 : 400, fontSize: isBase ? 12 : 11.5 }}>{label}</td>
+                  <td className={"mono num " + (sc.vala >= 0 ? "pos" : "neg")}>{fmt.eurC(sc.vala)}</td>
+                  <td className={"mono num " + (sc.val_base_ke >= 0 ? "pos" : "neg")}>{fmt.eurC(sc.val_base_ke)}</td>
+                  <td className="mono num pos">{fmt.eurC(sc.pv_pt2030)}</td>
+                  <td className="mono num pos">{fmt.eurC(sc.pv_rfai)}</td>
+                  <td className="mono num pos">{fmt.eurC(sc.escudo_fiscal)}</td>
+                  <td className={"mono num " + (isBase ? "muted" : delta >= 0 ? "pos" : "neg")}>
+                    {isBase ? "base" : fmt.eurC(delta)}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </Panel>
+
+      {/* ── Semáforo de risco fiscal ─────────────────────────────────────── */}
+      <Panel
+        title="Semáforo de Risco Fiscal"
+        sub="Viabilidade do projeto consoante a concretização dos benefícios fiscais"
+      >
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+          {semaforoItems.map((s, i) => {
+            const st = semaforoStatus(s.vala);
+            return (
+              <div key={i} style={{
+                flex: "1 1 210px",
+                background: bgOf(st),
+                border: borderOf(st),
+                borderRadius: 8,
+                padding: "14px 16px",
+              }}>
+                <div style={{ fontSize: 24, marginBottom: 4 }}>{dotOf(st)}</div>
+                <div style={{ fontWeight: 600, fontSize: 12.5, marginBottom: 6, lineHeight: 1.3 }}>{s.title}</div>
+                <div style={{
+                  fontFamily: "var(--mono)",
+                  fontSize: 22,
+                  fontWeight: 700,
+                  color: clrOf(st),
+                  marginBottom: 6,
+                }}>{fmt.eurC(s.vala)}</div>
+                <div style={{ fontSize: 11, color: "var(--ink-2)", lineHeight: 1.4 }}>{s.desc}</div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{
+          marginTop: 14,
+          padding: "8px 12px",
+          background: "var(--surface-2)",
+          borderRadius: 6,
+          fontSize: 11.5,
+          color: "var(--ink-2)",
+          lineHeight: 1.5,
+          borderTop: "1px solid var(--rule)",
+        }}>
+          <b>Conclusão:</b> O projeto é <b>inviável sem benefícios fiscais</b> —
+          {" "}{fmt.pct(Math.abs(pctFin), 0)} do VALA provém do PT2030, RFAI e escudo fiscal da dívida.
+          Apenas {fmt.pct(Math.abs(pctOps), 0)} é gerado pelas operações puras (VAL_base a Ke).
+        </div>
+      </Panel>
+    </>
+  );
+}
+
+// ---- Hub · Plano de Contingência -------------------------------------------
+function HubContingenciaView({ ctx }) {
+  const [comp, setComp] = React.useState(null);
+  const [sens, setSens] = React.useState(null);
+  const [viabCenarios, setViabCenarios] = React.useState(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(null);
+
+  React.useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    Promise.all([
+      API.hubComparativo({ cenario: ctx.scenario }),
+      API.hubValaSensibilidade({ cenario: ctx.scenario }),
+      API.hubViabilidadeCenarios(),
+    ])
+      .then(([c, s, vc]) => { if (!cancelled) { setComp(c); setSens(s); setViabCenarios(vc); setLoading(false); } })
+      .catch(err => { if (!cancelled) { setError(err.message || String(err)); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, [ctx.scenario]);
+
+  if (loading && !comp) return <LoadingShell />;
+  if (error && !comp) return <ErrorBanner message={error} onRetry={() => setError(null)} />;
+  if (!comp || !sens) return null;
+
+  // Anos de monitorização contínua (2025-2029)
+  const YEARS_PROJ = GRESTEL.YEARS.filter(y => y >= 2025);
+  // Anos operacionais do Hub: benefícios comerciais e poupanças começam em 2026
+  const YEARS_OP   = GRESTEL.YEARS.filter(y => y >= 2026);
+
+  const drComByYear  = Object.fromEntries(comp.com_hub.dr.map(r => [r.year, r]));
+  const drSemByYear  = Object.fromEntries(comp.sem_hub.dr.map(r => [r.year, r]));
+  const kpisByYear   = Object.fromEntries(comp.com_hub.kpis.map(r => [r.year, r]));
+  const balByYear    = Object.fromEntries(comp.com_hub.balanco.map(r => [r.year, r]));
+
+  // Δ VN Hub incremental — apenas anos operacionais (2026+; 2025 é obra, VN=0 por design)
+  const deltasVN_op = YEARS_OP.map(y => (drComByYear[y]?.vn || 0) - (drSemByYear[y]?.vn || 0));
+  const minDeltaVN  = deltasVN_op.length > 0 ? Math.min(...deltasVN_op) : 0;
+  const sumDeltaVN  = deltasVN_op.reduce((a, b) => a + b, 0);
+
+  // Threshold: limiar de 15% sobre o min VN operacional projetado
+  const limiar15pct = minDeltaVN * 0.15;
+
+  // Autonomia Financeira por ano
+  const afValues = YEARS_PROJ.map(y => kpisByYear[y]?.autonomia_financeira || 0);
+  const minAF = Math.min(...afValues);
+
+  // Dívida Líquida / EBITDA
+  const deValues = YEARS_PROJ.map(y => {
+    const b = balByYear[y] || {};
+    const divLiq = (b.Emprestimos_NC || 0) + (b.Emprestimos_C || 0) - (b.Caixa || 0);
+    const ebitda = drComByYear[y]?.ebitda || 0;
+    return ebitda > 0 ? divLiq / ebitda : 0;
+  });
+  const maxDE = Math.max(...deValues);
+
+  // ICR = EBIT / Juros (cobertura_juros)
+  const icrValues = YEARS_PROJ.map(y => kpisByYear[y]?.cobertura_juros || 0);
+  const minICR = Math.min(...icrValues);
+
+  // Semáforo status — VN: verde se todos os anos op. têm VN incremental positivo
+  const statusVN = minDeltaVN > limiar15pct ? "green" : minDeltaVN >= 0 ? "yellow" : "red";
+  const statusAF = minAF >= 0.35 ? "green" : minAF >= 0.30 ? "yellow" : "red";
+  const statusDE = maxDE <= 2.5 ? "green" : maxDE <= 3.5 ? "yellow" : "red";
+
+  const dotOf    = s => s === "green" ? "🟢" : s === "yellow" ? "🟡" : "🔴";
+  const bgOf     = s => s === "green" ? "var(--pos-soft)" : s === "yellow" ? "oklch(0.96 0.08 80)" : "var(--neg-soft)";
+  const clrOf    = s => s === "green" ? "var(--pos)" : s === "yellow" ? "oklch(0.50 0.12 70)" : "var(--neg)";
+  const borderOf = s => s === "green" ? "1px solid var(--pos)" : s === "yellow" ? "1px solid oklch(0.65 0.14 70)" : "1px solid var(--neg)";
+
+  // VALA cenários de risco (de sens)
+  const cenariosSens = sens.cenarios || {};
+  const valaBase      = cenariosSens["base"]?.vala ?? 0;
+  const valaSemPt2030 = cenariosSens["sem_pt2030"]?.vala ?? 0;
+  const valaKdPlus    = cenariosSens["kd_plus100bps"]?.vala ?? 0;
+  const impactoPT2030 = valaSemPt2030 - valaBase;
+  const impactoKd     = valaKdPlus - valaBase;
+
+  const n  = YEARS_PROJ.length;
+  const yrs = YEARS_PROJ.map(String);
+  const nOp  = YEARS_OP.length;
+  const yrsOp = YEARS_OP.map(String);
+
+  // Séries de monitorização (anos completos 2025-2029)
+  const afSeries = [
+    { labels: yrs, values: afValues, color: "var(--ink)", name: "AF com Hub", width: 2 },
+    { labels: yrs, values: Array(n).fill(0.35), color: "oklch(0.55 0.13 70)", dash: "5 3", width: 1.2, name: "Alerta 35%" },
+    { labels: yrs, values: Array(n).fill(0.30), color: "var(--neg)", dash: "5 3", width: 1.2, name: "Covenant 30%" },
+  ];
+  const icrSeries = [
+    { labels: yrs, values: icrValues, color: "var(--ink)", name: "ICR (EBIT/Juros)", width: 2 },
+    { labels: yrs, values: Array(n).fill(1.2), color: "var(--neg)", dash: "5 3", width: 1.2, name: "DSCR mín. 1,2×" },
+  ];
+  const deSeries = [
+    { labels: yrs, values: deValues, color: "var(--ink)", name: "Dív. Líq./EBITDA", width: 2 },
+    { labels: yrs, values: Array(n).fill(3.5), color: "var(--neg)", dash: "5 3", width: 1.2, name: "Covenant 3,5×" },
+    { labels: yrs, values: Array(n).fill(2.5), color: "oklch(0.55 0.13 70)", dash: "5 3", width: 1.2, name: "Alerta 2,5×" },
+  ];
+
+  // Gráfico VN incremental — apenas anos operacionais (2026-2029)
+  const vnGroups = YEARS_OP.map((y, i) => ({
+    label: String(y),
+    bars: [{ key: "Δ VN Hub", value: deltasVN_op[i], color: deltasVN_op[i] >= 0 ? "var(--accent)" : "var(--neg)" }],
+  }));
+
+  // Tabela de cenários: VAL/TIR/Payback por cenário
+  const SC_LIST = [
+    { id: "Base",     label: "Base",     color: "var(--ink)" },
+    { id: "Upside",   label: "Upside",   color: "var(--pos)" },
+    { id: "Downside", label: "Downside", color: "oklch(0.55 0.13 70)" },
+    { id: "Stress",   label: "Stress",   color: "var(--neg)" },
+  ];
+  // VN Hub incremental cumulativo 2026-2029 por cenário (benchmark inter-cenário)
+  // Nota: hubComparativo reflete o cenário atual; para ver todos os cenários usar o selector global.
+  const vnSumLabel = ctx.scenario === "Base"     ? "€2,8 M (350+650+850+950)" :
+                     ctx.scenario === "Upside"   ? "€3,35 M (450+750+1000+1150)" :
+                     ctx.scenario === "Downside" ? "€1,975 M (250+450+600+675)" :
+                     ctx.scenario === "Stress"   ? "€1,15 M (150+250+350+400)" : fmt.eurC(sumDeltaVN);
+
+  const cardStyle = {
+    border: "1px solid var(--rule)", borderRadius: 8,
+    padding: "14px 16px", background: "var(--surface)",
+  };
+  const riskBadge = (n, bg, clr) => (
+    <span style={{ background: bg, color: clr, padding: "2px 8px", borderRadius: 4, fontSize: 10.5, fontWeight: 700 }}>{n}</span>
+  );
+  const impactRow = (label, val, isImpact) => (
+    <div style={{ display: "flex", justifyContent: "space-between", marginTop: isImpact ? 0 : 4 }}>
+      <span className="muted">{label}</span>
+      <span className={"mono " + (isImpact && val < 0 ? "neg" : isImpact && val >= 0 ? "pos" : "")}>{fmt.eurC(val)}</span>
+    </div>
+  );
+
+  return (
+    <>
+      {/* ── Sistema de Semáforos ─────────────────────────────────────────── */}
+      <Panel
+        title="Sistema de Semáforos — Pontos Críticos de Viabilidade"
+        sub="Monitorização contínua das três métricas críticas definidas em §9.3 do Plano de Contingência"
+      >
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+          {/* S1 — VN Incremental */}
+          <div style={{ background: bgOf(statusVN), border: borderOf(statusVN), borderRadius: 8, padding: "14px 16px" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: clrOf(statusVN), textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>
+              {dotOf(statusVN)} Volume Faturação Incremental
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: clrOf(statusVN), fontFamily: "var(--mono)", marginBottom: 2 }}>
+              {fmt.eurC(minDeltaVN)} mín.
+            </div>
+            <div style={{ fontSize: 12, color: clrOf(statusVN), fontFamily: "var(--mono)", marginBottom: 4, opacity: 0.75 }}>
+              {fmt.eurC(sumDeltaVN)} acum. 2026–2029
+            </div>
+            <div style={{ fontSize: 11.5, color: "var(--ink-2)", lineHeight: 1.4 }}>
+              Mínimo Δ VN Hub anual 2026–2029 (ano de obra excluído) · limiar de alerta: queda &gt; 15%
+            </div>
+            <div style={{ marginTop: 8, fontSize: 10.5, color: clrOf(statusVN) }}>
+              {statusVN === "green" ? "VN Hub positivo em todos os anos operacionais" : statusVN === "yellow" ? "VN Hub no limiar dos 15% — monitorizar" : "VN Hub negativo — ativar linha revolving"}
+            </div>
+          </div>
+
+          {/* S2 — Autonomia Financeira */}
+          <div style={{ background: bgOf(statusAF), border: borderOf(statusAF), borderRadius: 8, padding: "14px 16px" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: clrOf(statusAF), textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>
+              {dotOf(statusAF)} Autonomia Financeira
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: clrOf(statusAF), fontFamily: "var(--mono)", marginBottom: 4 }}>
+              {fmt.pct(minAF, 1)} mín.
+            </div>
+            <div style={{ fontSize: 11.5, color: "var(--ink-2)", lineHeight: 1.4 }}>
+              Mínimo AF 2025–2029 · teto prudencial ≥ 35% (alerta) · covenant ≥ 30% (crítico)
+            </div>
+            <div style={{ marginTop: 8, fontSize: 10.5, color: clrOf(statusAF) }}>
+              {statusAF === "green" ? "AF acima do teto prudencial (35%)" : statusAF === "yellow" ? "AF entre 30–35% — zona de alerta precoce" : "AF abaixo do covenant (30%) — ação urgente"}
+            </div>
+          </div>
+
+          {/* S3 — Dívida Líquida / EBITDA */}
+          <div style={{ background: bgOf(statusDE), border: borderOf(statusDE), borderRadius: 8, padding: "14px 16px" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: clrOf(statusDE), textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 6 }}>
+              {dotOf(statusDE)} Dívida Líquida / EBITDA
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: clrOf(statusDE), fontFamily: "var(--mono)", marginBottom: 4 }}>
+              {fmt.ratio(maxDE, 1)} máx.
+            </div>
+            <div style={{ fontSize: 11.5, color: "var(--ink-2)", lineHeight: 1.4 }}>
+              Pico 2025–2029 · covenant contratual ≤ 3,5× · alerta ≥ 2,5×
+            </div>
+            <div style={{ marginTop: 8, fontSize: 10.5, color: clrOf(statusDE) }}>
+              {statusDE === "green" ? "Alavancagem controlada (< 2,5×)" : statusDE === "yellow" ? "Alavancagem entre 2,5–3,5× — monitorizar" : "Covenant violado — renegociação necessária"}
+            </div>
+          </div>
+        </div>
+      </Panel>
+
+      {/* ── Análise de Riscos e Mitigação ────────────────────────────────── */}
+      <Panel
+        title="Análise de Riscos e Plano de Mitigação"
+        sub="Três riscos críticos identificados em §9.2 — combinação simultânea de desvios desfavoráveis (ceteris paribus)"
+      >
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+          {/* Risco 1 — PT2030 */}
+          <div style={cardStyle}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              {riskBadge("RISCO 1", "var(--neg-soft)", "var(--neg)")}
+              <span style={{ fontSize: 12, fontWeight: 600 }}>Atraso PT2030</span>
+            </div>
+            <div style={{ fontSize: 11.5, color: "var(--ink-2)", lineHeight: 1.5, marginBottom: 10 }}>
+              Não recebimento dos <b>€2,7 M</b> planeados para 2027: eleva Dívida Líquida, reduz AF para níveis próximos do limite de 30% e sobrecarrega o FCF com encargos de juros.
+            </div>
+            <div style={{ background: "var(--surface-2)", borderRadius: 6, padding: "8px 12px", fontSize: 11.5, marginBottom: 8 }}>
+              {impactRow("Impacto no VALA", impactoPT2030, true)}
+              {impactRow("VALA sem PT2030", valaSemPt2030, false)}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--ink-2)", lineHeight: 1.5 }}>
+              <b style={{ color: "var(--pos)" }}>Mitigação:</b> Linha revolving €500k · Suporte acionistas · Amortização extraordinary desloca-se 2027 → 2028
+            </div>
+          </div>
+
+          {/* Risco 2 — Subida Taxa Juro */}
+          <div style={cardStyle}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              {riskBadge("RISCO 2", "var(--neg-soft)", "var(--neg)")}
+              <span style={{ fontSize: 12, fontWeight: 600 }}>Subida Taxa de Juro</span>
+            </div>
+            <div style={{ fontSize: 11.5, color: "var(--ink-2)", lineHeight: 1.5, marginBottom: 10 }}>
+              Banco Hub (€3 M) indexado à Euribor 3M + spread 1,25%. Subida eleva o WACC, reduz o VAL e ameaça o covenant DSCR ≥ 1,2× a partir de 2028.
+            </div>
+            <div style={{ background: "var(--surface-2)", borderRadius: 6, padding: "8px 12px", fontSize: 11.5, marginBottom: 8 }}>
+              {impactRow("Impacto Kd +100 bps", impactoKd, true)}
+              {impactRow("VALA c/ +100 bps", valaKdPlus, false)}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--ink-2)", lineHeight: 1.5 }}>
+              <b style={{ color: "var(--pos)" }}>Mitigação:</b> IRS (Interest Rate Swap) ativado quando Euribor 3M exceder o ponto crítico definido no modelo
+            </div>
+          </div>
+
+          {/* Risco 3 — CAPEX */}
+          <div style={cardStyle}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              {riskBadge("RISCO 3", "oklch(0.96 0.08 80)", "oklch(0.50 0.12 70)")}
+              <span style={{ fontSize: 12, fontWeight: 600 }}>Derrapagem CAPEX</span>
+            </div>
+            <div style={{ fontSize: 11.5, color: "var(--ink-2)", lineHeight: 1.5, marginBottom: 10 }}>
+              Aumento nos custos de construção e digitalização acima dos €6 M previstos exige maior aporte de capitais próprios (autofinanciamento via resultados retidos), degradando o Índice de Rendibilidade.
+            </div>
+            <div style={{ background: "var(--surface-2)", borderRadius: 6, padding: "8px 12px", fontSize: 11.5, marginBottom: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span className="muted">CAPEX planeado</span>
+                <span className="mono">€6,0 M</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+                <span className="muted">Derrapagem típica obra</span>
+                <span className="mono">+10–20%</span>
+              </div>
+            </div>
+            <div style={{ fontSize: 11, color: "var(--ink-2)", lineHeight: 1.5 }}>
+              <b style={{ color: "var(--pos)" }}>Mitigação:</b> Contratos "chave-na-mão" (turnkey) com preço fixo e não ajustável antes do início da execução em 2025
+            </div>
+          </div>
+        </div>
+      </Panel>
+
+      {/* ── Autonomia Financeira e ICR ───────────────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <Panel
+          title="Autonomia Financeira · 2025–2029"
+          sub={"CP / Ativo Total · teto prudencial 35% · covenant ≥ 30% · mín. projetado: " + fmt.pct(minAF, 1)}
+        >
+          <LineChart
+            series={afSeries}
+            height={220}
+            yFormat={v => fmt.pct(v, 0)}
+            showDots
+          />
+        </Panel>
+
+        <Panel
+          title="Cobertura de Juros (ICR) · 2025–2029"
+          sub={"EBIT / Juros Líquidos · covenant DSCR ≥ 1,2× · mín. projetado: " + fmt.ratio(minICR, 1)}
+        >
+          <LineChart
+            series={icrSeries}
+            height={220}
+            yFormat={v => v.toFixed(1).replace(".", ",") + "×"}
+            showDots
+          />
+        </Panel>
+      </div>
+
+      {/* ── Alavancagem e VN Incremental ─────────────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <Panel
+          title="Alavancagem · Dívida Líquida / EBITDA · 2025–2029"
+          sub={"Covenant ≤ 3,5× · alerta ≥ 2,5× · pico projetado: " + fmt.ratio(maxDE, 1)}
+        >
+          <LineChart
+            series={deSeries}
+            height={220}
+            yFormat={v => v.toFixed(1).replace(".", ",") + "×"}
+            showDots
+          />
+        </Panel>
+
+        <Panel
+          title={"Δ VN Incremental Hub · 2026–2029 · cenário " + ctx.scenario}
+          sub={"VN com Hub − VN sem Hub · 2025 (obra) excluído · queda > 15% ativa linha revolving · acumulado: " + fmt.eurC(sumDeltaVN)}
+        >
+          <BarChart groups={vnGroups} height={220} yFormat={fmt.eurC} />
+        </Panel>
+      </div>
+
+      {/* ── Comparativo por Cenário ──────────────────────────────────────── */}
+      <Panel
+        title="Viabilidade do Hub por Cenário"
+        sub="VAL · TIR · Payback · VN Hub acumulado 2026–2029 — use o selector de cenário para actualizar o gráfico VN acima"
+      >
+        <table className="ftable">
+          <thead>
+            <tr>
+              <th>Cenário</th>
+              <th className="mono num">VAL (€)</th>
+              <th className="mono num">TIR</th>
+              <th className="mono num">Payback</th>
+              <th className="mono num">IR</th>
+              <th className="mono num">VN Hub 2026–2029</th>
+              <th>Nota</th>
+            </tr>
+          </thead>
+          <tbody>
+            {SC_LIST.map(sc => {
+              const d = viabCenarios?.[sc.id];
+              const isActive = sc.id === ctx.scenario;
+              // VN acumulado Hub por cenário (fixo — de loader.py overrides)
+              const vnAcum = sc.id === "Base"     ? 2800000 :
+                             sc.id === "Upside"   ? 3350000 :
+                             sc.id === "Downside" ? 1975000 :
+                             sc.id === "Stress"   ? 1150000 : sumDeltaVN;
+              const vnBase = 2800000; // Base reference (350+650+850+950)
+              const vnPct  = (vnAcum - vnBase) / vnBase;
+              return (
+                <tr key={sc.id} style={{ fontWeight: isActive ? 600 : undefined, background: isActive ? "var(--surface-2)" : undefined }}>
+                  <td>
+                    <span style={{ color: sc.color, fontWeight: 600 }}>{sc.label}</span>
+                    {isActive && <span className="chip-static" style={{ marginLeft: 6, fontSize: 9.5, padding: "1px 6px" }}>atual</span>}
+                  </td>
+                  <td className={"mono num " + (d?.vpl >= 0 ? "pos" : "neg")}>{d ? fmt.eur(d.vpl) : "—"}</td>
+                  <td className={"mono num " + (d?.tir != null && d.tir >= 0.073 ? "pos" : "neg")}>{d?.tir != null ? fmt.pct(d.tir, 1) : "—"}</td>
+                  <td className="mono num">{d?.payback_simples != null ? d.payback_simples.toFixed(1) + " a" : "—"}</td>
+                  <td className={"mono num " + (d?.indice_rendibilidade >= 1 ? "pos" : "neg")}>{d?.indice_rendibilidade != null ? fmt.ratio(d.indice_rendibilidade, 2) : "—"}</td>
+                  <td className={"mono num " + (vnPct >= 0 ? "pos" : "neg")}>
+                    {fmt.eurC(vnAcum)}
+                    <span style={{ fontSize: 10, marginLeft: 4, opacity: 0.75 }}>{fmt.pctSigned(vnPct)}</span>
+                  </td>
+                  <td style={{ fontSize: 11, color: "var(--ink-2)" }}>
+                    {sc.id === "Base"     && "Poupança €280k · VN Hub +B2C/Horeca"}
+                    {sc.id === "Upside"   && "Poupança €349k · crescimento 4% a.a."}
+                    {sc.id === "Downside" && "Poupança €172k · ramp-up 75% (2026)"}
+                    {sc.id === "Stress"   && "Poupança €46k · ramp-up 60% · WACC 9,1%"}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <div style={{ marginTop: 10, fontSize: 11, color: "var(--ink-2)", lineHeight: 1.5 }}>
+          VN Hub 2026–2029 = acumulado de benefícios comerciais (B2C + Horeca + logística a terceiros).
+          VAL/TIR/Payback calculados pelo motor Python sobre o FCF incremental unlevered (WACC dinâmico por tranche).
+          O VAL ≥ 0 em Downside confirma a viabilidade do projeto mesmo em condições adversas.
+        </div>
+      </Panel>
+
+      {/* ── Nota §9.1 inflação ───────────────────────────────────────────── */}
+      <div style={{ padding: "10px 14px", background: "var(--surface-2)", borderRadius: 6, fontSize: 11, color: "var(--ink-2)", lineHeight: 1.6 }}>
+        <b>§9.1 — Risco de Inflação e Assimetria de Preços Correntes:</b> O modelo projeta fluxos a preços nominais (iM = 12% vs iR = 9,27%).
+        As depreciações do AFT fixadas ao custo histórico geram uma perda real de economia fiscal à taxa de atualização nominal.
+        Mitigação: revisão trimestral de contratos logísticos com cláusulas de indexação parcial + pricing dinâmico nos mercados externos.
+      </div>
+    </>
+  );
+}
+
 // ---- Ecogres ---------------------------------------------------------------
 function EcogresView({ ctx }) {
   const eco = useMemo(() => GRESTEL.projectEcogres(ctx.hubOn), [ctx.hubOn]);
@@ -1645,7 +2468,7 @@ function EcogresView({ ctx }) {
   return (
     <>
       <div className="grid-3">
-        <KPI label="Receitas 2025" value={fmt.eurC(eco[1].rec_total)} sub="subcontratação + cedência" />
+        <KPI label="Receitas 2025" value={fmt.eurC(eco[1].rec_total)} sub="subcontratação Grestel" />
         <KPI label="EBITDA 2029" value={fmt.eurC(eco[5].ebitda)} tone={eco[5].ebitda >= 0 ? "pos" : "neg"} />
         <KPI label="RL acumulado 2025-29" value={fmt.eurC(eco.slice(1).reduce((a, r) => a + r.rl, 0))} />
       </div>
@@ -1667,9 +2490,7 @@ function EcogresView({ ctx }) {
             </tr>
           </thead>
           <tbody>
-            <FRow label="Vendas a Terceiros (externas)" values={eco.map(r => r.vendas_externas)} />
             <FRow label="Subcontratação Grestel" values={eco.map(r => r.subc)} />
-            <FRow label="Cedência de Pessoal" values={eco.map(r => r.ced)} />
             {ctx.hubOn && <FRow label="Transferência Hub" values={eco.map(r => r.transfer_hub)} />}
             <tr className="is-subtotal"><td>Receita Total</td>{eco.map((r, i) => <td key={i} className="mono num">{fmt.eur(r.rec_total)}</td>)}</tr>
             <FRow label="Custos Operacionais" values={eco.map(r => -r.custos_op)} />
@@ -3335,7 +4156,7 @@ function PessoalView({ ctx }) {
 
 Object.assign(window, {
   DRView, BalancoView, DFCView, KPIView, FSEView, RollingView,
-  HubView, HubViabilidadeView, HubMonteCarloView, HubOE4View, FundingCard,
+  HubView, HubViabilidadeView, HubMonteCarloView, HubOE4View, HubContingenciaView, FundingCard,
   HubComparativoDR, HubComparativoKPIs, HubConsolidadoView,
   EcogresView, PressupostosView, VendasView, SmartView, SmartBadge, KV, YamlEditorView,
   SensibilidadeView, CenariosView, ProducaoView, PessoalView,

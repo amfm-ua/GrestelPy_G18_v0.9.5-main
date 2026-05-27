@@ -14,7 +14,7 @@ router = APIRouter(prefix="/api")
 def get_smart_tracker(
     cenario: str = Query("Base"),
     hub_on: bool = Query(False),
-    ecogres_on: bool = Query(False),
+    ecogres_on: bool = Query(True),
 ):
     """Devolve o tracker SMART com status por objetivo e ano.
 

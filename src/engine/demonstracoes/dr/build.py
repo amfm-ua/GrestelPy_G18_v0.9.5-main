@@ -151,7 +151,7 @@ def build_dr(
             hub_rfai_map = None
 
     # Ecogres: se ativa, afeta CMVMC (redução, maior eficiência) e pessoal (cedência)
-    eco = _load_ecogres()
+    eco = _load_ecogres(a)
 
     if eco is not None:
         # Subcontratação Ecogres: redução de CMVMC (outsourcing de produção)

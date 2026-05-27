@@ -169,28 +169,30 @@ const GRESTEL = (() => {
   }
 
   function ecogresDR(year, hubOn) {
-    // Reconstrução do modelo Ecogres (ecogres_assumptions.yaml)
-    // O YAML expõe apenas transações intercompany (2,6 M€). As vendas externas
-    // são calibradas para reconciliar com rl_base_2024 = 85k€.
+    // Valores do ecogres_assumptions.yaml, alinhados com R&C 2024 Nota 36:
+    // receita = vendas à Grestel exclusivamente (cliente exclusivo, sem terceiros)
+    // custos_op inclui a cedência de pessoal debitada pela Grestel (2,22 M€)
     const yIdx = year - 2024;
-    const subc = 2240000 * Math.pow(1.03, yIdx);
-    const ced  = 360000  * Math.pow(1.02, yIdx);
-    // Calibração: para RL 2024 = 85k€, EBIT = ~108k€, EBITDA = ~383k€
-    // logo Receita Total 2024 = 5.48M (custos) + 0.38M (EBITDA) ≈ 5,86 M€
-    // Externas = 5,86 − 2,60 = ~3,26 M€
-    const vendas_externas = 3260000 * Math.pow(1.025, yIdx);
-    const custos_op = 5480000 * Math.pow(1.02, yIdx);
-    const dep = 275000 * Math.pow(1.01, yIdx);
+    const subc = 8260000 * Math.pow(1.03, yIdx);
     const transfer_hub = (hubOn && year >= 2026 ? 180000 * Math.pow(1.02, year - 2026) : 0);
-    const rec_total = subc + ced + vendas_externas + transfer_hub;
+    const rec_total = subc + transfer_hub;
+    const custos_op = 7880000 * Math.pow(1.02, yIdx);
+    const dep = 275000 * Math.pow(1.01, yIdx);
     const alpha = hubOn ? 0.15 : 0.40;
     const custos_aj = custos_op * (1 + (yIdx * 0.005 * alpha));
     const ebitda = rec_total - custos_aj;
     const ebit = ebitda - dep;
-    const rai = ebit - 5000 + 5000; // rendimentos financeiros 5k
-    const irc = Math.max(rai, 0) * 0.21;
-    const rl = rai - irc;
-    return { year, subc, ced, vendas_externas, transfer_hub, custos_op: custos_aj, dep, rec_total, ebitda, ebit, rai, irc, rl };
+    const rai = ebit + 5000; // rendimentos financeiros 5k
+    // IRC: 2024=21% histórico (RL fixado em 85k), 2025+=20%
+    let irc, rl;
+    if (year === 2024) {
+      rl = 85000;
+      irc = rai - rl;
+    } else {
+      irc = Math.max(rai, 0) * 0.20;
+      rl = rai - irc;
+    }
+    return { year, subc, transfer_hub, custos_op: custos_aj, dep, rec_total, ebitda, ebit, rai, irc, rl };
   }
 
   function projectEcogres(hubOn) {

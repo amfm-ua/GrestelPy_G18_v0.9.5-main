@@ -12,7 +12,7 @@ router = APIRouter(prefix="/api")
 def get_assumptions_effective(
     cenario: str = Query("Base"),
     hub_on: bool = Query(False),
-    ecogres_on: bool = Query(False),
+    ecogres_on: bool = Query(True),
 ):
     return _build_assumptions_response(cenario, hub_on, ecogres_on)
 

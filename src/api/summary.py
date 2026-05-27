@@ -15,7 +15,7 @@ def _key(**kwargs) -> str:
 
 
 @router.get("/summary")
-def summary(hub_on: bool = False, ecogres_on: bool = False, cenario: str = "Base"):
+def summary(hub_on: bool = False, ecogres_on: bool = True, cenario: str = "Base"):
     k = _key(hub_on=hub_on, ecogres_on=ecogres_on, cenario=cenario)
     now = time.time()
     if k in _CACHE and now - _CACHE[k][0] < _TTL:

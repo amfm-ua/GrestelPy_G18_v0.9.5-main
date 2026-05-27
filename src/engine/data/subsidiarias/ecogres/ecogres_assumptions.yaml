@@ -1,4 +1,4 @@
-incluir_ecogres: false
+incluir_ecogres: true
 
 operacoes_correntes:
   custos_operacionais_2024:
@@ -13,7 +13,7 @@ operacoes_correntes:
 
 transacoes_grestel:
   subcontratacao_2024: 8260000
-  cedencia_pessoal_2024: 360000
+  cedencia_pessoal_2024: 2222745
   crescimento_subcontratacao: 0.03
   crescimento_cedencia: 0.02
 
@@ -24,10 +24,10 @@ viabilidade:
   irc_taxa_ecogres: 0.21  # taxa histórica 2024
   irc_taxa_por_ano:
     2025: 0.20
-    2026: 0.19
-    2027: 0.18
-    2028: 0.18
-    2029: 0.18
+    2026: 0.20
+    2027: 0.20
+    2028: 0.20
+    2029: 0.20
 
 transferencia_hub:
   inicio: 2026

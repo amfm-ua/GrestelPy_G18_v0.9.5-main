@@ -34,7 +34,7 @@ def _cresc_section(id_: str, label: str, raw_key: str, raw: dict) -> dict:
 def build_pressupostos_summary(
     cenario: str = "Base",
     hub_on: bool = False,
-    ecogres_on: bool = False,
+    ecogres_on: bool = True,
 ) -> dict[str, Any]:
     """Retorna resumo estruturado de todos os pressupostos do cenário activo.
 

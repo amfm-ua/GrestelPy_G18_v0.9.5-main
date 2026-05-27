@@ -488,6 +488,34 @@ const API = (() => {
     return await r.json();
   }
 
+  // ─── hubMonteCarloVala ─────────────────────────────────────────────────────
+  async function hubMonteCarloVala({ cenario = "Base", n = 1000, irc_taxa = 0.245, seed, pt2030_prob } = {}) {
+    const params = new URLSearchParams({ cenario, n: String(n), irc_taxa: String(irc_taxa) });
+    if (seed != null) params.set("seed", String(seed));
+    if (pt2030_prob != null) params.set("pt2030_prob", String(pt2030_prob));
+    const r = await fetch(BACKEND_URL + "/api/hub/monte-carlo-vala?" + params);
+    if (!r.ok) throw new Error("Erro /hub/monte-carlo-vala: " + r.status);
+    return await r.json();
+  }
+
+  // ─── hubVala ───────────────────────────────────────────────────────────────
+  async function hubVala({ cenario = "Base", irc_taxa } = {}) {
+    const params = new URLSearchParams({ cenario });
+    if (irc_taxa != null) params.set("irc_taxa", irc_taxa);
+    const r = await fetch(BACKEND_URL + "/api/hub/vala?" + params);
+    if (!r.ok) throw new Error("Erro /hub/vala: " + r.status);
+    return await r.json();
+  }
+
+  // ─── hubValaSensibilidade ──────────────────────────────────────────────────
+  async function hubValaSensibilidade({ cenario = "Base", irc_taxa } = {}) {
+    const params = new URLSearchParams({ cenario });
+    if (irc_taxa != null) params.set("irc_taxa", irc_taxa);
+    const r = await fetch(BACKEND_URL + "/api/hub/vala-sensibilidade?" + params);
+    if (!r.ok) throw new Error("Erro /hub/vala-sensibilidade: " + r.status);
+    return await r.json();
+  }
+
   // ─── hubDebtService ────────────────────────────────────────────────────────
   async function hubDebtService() {
     const r = await fetch(BACKEND_URL + "/api/hub/debt-service");
@@ -540,7 +568,7 @@ const API = (() => {
   }
 
   // ─── sensibilidade ─────────────────────────────────────────────────────────
-  async function sensibilidade({ cenario = "Base", hub_on = false, ecogres_on = false } = {}) {
+  async function sensibilidade({ cenario = "Base", hub_on = false, ecogres_on = true } = {}) {
     if (useMock) {
       const s = GRESTEL.SCENARIOS[cenario] || GRESTEL.SCENARIOS.Base;
       const d24 = GRESTEL.DR_2024;
@@ -644,7 +672,7 @@ const API = (() => {
 
   // ─── cenariosHubDelta ──────────────────────────────────────────────────────
   // Impacto incremental do Hub (com − sem) por cenário e ano.
-  async function cenariosHubDelta({ ecogres_on = false } = {}) {
+  async function cenariosHubDelta({ ecogres_on = true } = {}) {
     if (useMock) {
       const SC_LIST = ["Base", "Upside", "Downside", "Stress"];
       const result = {};
@@ -680,7 +708,7 @@ const API = (() => {
   }
 
   // ─── cenariosAll ───────────────────────────────────────────────────────────
-  async function cenariosAll({ hub_on = false, ecogres_on = false } = {}) {
+  async function cenariosAll({ hub_on = false, ecogres_on = true } = {}) {
     if (useMock) {
       const result = {};
       for (const sc of Object.keys(GRESTEL.SCENARIOS)) {
@@ -801,5 +829,5 @@ const API = (() => {
     URL.revokeObjectURL(url);
   }
 
-  return { useMock, health, projecao, vendasAnalise, producaoAnalise, smartTracker, hubViability, hubTornado, hubBreakEven, hubComparativo, hubConsolidado, hubMonteCarlo, hubDebtService, hubInvestmentMap, listYamlFiles, getYamlContent, putYamlContent, restoreYamlContent, sensibilidade, cenariosAll, cenariosHubDelta, hubViabilidadeCenarios, exportExcel, exportM3, rollingForecast, FSE_RUBRICAS };
+  return { useMock, health, projecao, vendasAnalise, producaoAnalise, smartTracker, hubViability, hubTornado, hubBreakEven, hubComparativo, hubConsolidado, hubMonteCarlo, hubMonteCarloVala, hubVala, hubValaSensibilidade, hubDebtService, hubInvestmentMap, listYamlFiles, getYamlContent, putYamlContent, restoreYamlContent, sensibilidade, cenariosAll, cenariosHubDelta, hubViabilidadeCenarios, exportExcel, exportM3, rollingForecast, FSE_RUBRICAS };
 })();

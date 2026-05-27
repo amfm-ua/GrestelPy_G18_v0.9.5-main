@@ -11,7 +11,7 @@ router = APIRouter(prefix="/api")
 def get_pressupostos(
     cenario: str = Query("Base"),
     hub_on: bool = Query(False),
-    ecogres_on: bool = Query(False),
+    ecogres_on: bool = Query(True),
 ) -> dict:
     """Retorna resumo estruturado de todos os pressupostos do cenário activo.
 

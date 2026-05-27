@@ -10,7 +10,7 @@ from pydantic import BaseModel
 class RunRequest(BaseModel):
     cenario: str = "Base"
     hub_on: bool = False
-    ecogres_on: bool = False
+    ecogres_on: bool = True
     assumptions: dict[str, Any] | None = None
     persist: bool = False
 

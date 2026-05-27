@@ -27,7 +27,7 @@ except ImportError:
 def run_model(
     cenario: str = "Base",
     hub_on: bool = False,
-    ecogres_on: bool = False,
+    ecogres_on: bool = True,
     assumptions_overrides: dict[str, Any] | None = None,
 ) -> dict[str, pd.DataFrame]:
     """

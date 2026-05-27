@@ -20,11 +20,11 @@ def _get_dfc_2024_value(
 
 
 def _load_ecogres_impact(a: Assumptions, df_vn: pd.DataFrame | None = None) -> dict[int, dict] | None:
-    """Carrega grestel_impact() da Ecogres apenas se ativa."""
+    """Carrega grestel_impact() da Ecogres apenas se ativa em runtime (a.raw)."""
     try:
         from ..projetos import ecogres as eco_mod
 
-        eco = eco_mod.load()
+        eco = a.raw.get("ecogres", {})
         if not eco or not eco.get("incluir_ecogres", False):
             return None
 
